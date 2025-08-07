@@ -1,0 +1,473 @@
+{% extends "base.html" %}
+
+{% block title %}Lightning Checkout - Digital Marketplace{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <!-- Checkout Header -->
+        <div class="card mb-4">
+            <div class="card-header bg-warning text-dark">
+                <h4 class="mb-0">
+                    <i class="fas fa-bolt"></i>
+                    Lightning Checkout
+                </h4>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-8">
+                        <h5 id="productName">Loading product...</h5>
+                        <p id="productDescription" class="text-muted">Loading description...</p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <div class="price-display">
+                            <div class="fs-4 fw-bold text-warning" id="productPrice">⚡ ... sats</div>
+                            <small class="text-muted" id="productPriceBTC">≈ ... BTC</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Payment Status -->
+        <div class="card">
+            <div class="card-body">
+                <div id="paymentStatus">
+                    <!-- Payment status will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Payment Success Modal -->
+<div class="modal fade" id="successModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-check-circle"></i>
+                    Payment Successful!
+                </h5>
+            </div>
+            <div class="modal-body text-center">
+                <div class="mb-3">
+                    <i class="fas fa-check-circle text-success" style="font-size: 4rem;"></i>
+                </div>
+                <h5>Your payment has been confirmed!</h5>
+                <p class="text-muted">Your digital product is ready for download.</p>
+                <div id="downloadInfo">
+                    <!-- Download information will be loaded here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-success" onclick="window.location.href='/store'">
+                    Continue Shopping
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Payment Error Modal -->
+<div class="modal fade" id="errorModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Payment Error
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="errorMessage">
+                    <!-- Error message will be loaded here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="retryPayment()">
+                    <i class="fas fa-redo"></i> Retry
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let productId = null;
+let orderId = null;
+let paymentCheckInterval = null;
+
+// Extract product ID from URL
+document.addEventListener('DOMContentLoaded', function() {
+    const pathParts = window.location.pathname.split('/');
+    productId = parseInt(pathParts[pathParts.length - 1]);
+    
+    if (productId) {
+        loadProductAndCreatePayment();
+    } else {
+        showError('Invalid product ID');
+    }
+});
+
+function loadProductAndCreatePayment() {
+    // Load product details
+    fetch(`/api/products/${productId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                displayProduct(data.product);
+                createPaymentRequest(data.product);
+            } else {
+                showError('Product not found: ' + data.error);
+            }
+        })
+        .catch(error => {
+            showError('Error loading product: ' + error.message);
+        });
+}
+
+function displayProduct(product) {
+    document.getElementById('productName').textContent = product.name;
+    document.getElementById('productDescription').textContent = product.description;
+    document.getElementById('productPrice').textContent = `⚡ ${product.price_sats.toLocaleString()} sats`;
+    document.getElementById('productPriceBTC').textContent = `≈ ${product.price_btc.toFixed(8)} BTC`;
+}
+
+function createPaymentRequest(product) {
+    showPaymentStatus('creating', 'Creating Lightning payment request...');
+    
+    fetch('/api/create-payment', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            product_id: product.id,
+            customer_email: null // Optional for now
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            orderId = data.order_id;
+            displayPaymentRequest(data);
+            startPaymentMonitoring();
+        } else {
+            showError('Failed to create payment: ' + data.error);
+        }
+    })
+    .catch(error => {
+        showError('Error creating payment: ' + error.message);
+    });
+}
+
+function displayPaymentRequest(paymentData) {
+    const statusDiv = document.getElementById('paymentStatus');
+    
+    statusDiv.innerHTML = `
+        <div class="text-center">
+            <h5 class="mb-3">
+                <i class="fas fa-qrcode"></i>
+                Scan QR Code to Pay
+            </h5>
+            
+            <div class="row">
+                <div class="col-md-6 text-center">
+                    <div class="qr-code-container mb-3">
+                        ${paymentData.qr_code ? 
+                            `<img src="${paymentData.qr_code}" alt="Lightning Payment QR Code" class="img-fluid" style="max-width: 250px;">` :
+                            '<div class="alert alert-warning">QR Code not available</div>'
+                        }
+                    </div>
+                    <button class="btn btn-outline-primary" onclick="copyToClipboard('${paymentData.payment_request}')">
+                        <i class="fas fa-copy"></i> Copy Invoice
+                    </button>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="payment-details">
+                        <h6>Payment Details</h6>
+                        <div class="list-group list-group-flush">
+                            <div class="list-group-item d-flex justify-content-between">
+                                <span>Amount:</span>
+                                <span class="fw-bold">⚡ ${paymentData.amount_sats.toLocaleString()} sats</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between">
+                                <span>BTC Amount:</span>
+                                <span>${paymentData.amount_btc.toFixed(8)} BTC</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between">
+                                <span>Order ID:</span>
+                                <span class="font-monospace">${paymentData.order_id}</span>
+                            </div>
+                            <div class="list-group-item d-flex justify-content-between">
+                                <span>Expires:</span>
+                                <span id="expiryCountdown">15:00</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>How to pay:</strong>
+                            <ol class="mb-0 mt-2">
+                                <li>Open your Lightning wallet</li>
+                                <li>Scan the QR code or copy the invoice</li>
+                                <li>Confirm the payment amount</li>
+                                <li>Send the payment</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <div class="payment-status-indicator">
+                    <div class="spinner-border text-warning me-2" role="status" id="paymentSpinner">
+                        <span class="visually-hidden">Waiting for payment...</span>
+                    </div>
+                    <span id="paymentStatusText">Waiting for Lightning payment...</span>
+                </div>
+            </div>
+            
+            <div class="mt-3">
+                <button class="btn btn-outline-secondary" onclick="cancelPayment()">
+                    <i class="fas fa-times"></i> Cancel Payment
+                </button>
+            </div>
+        </div>
+    `;
+    
+    // Start expiry countdown
+    const expiresAt = new Date(paymentData.expires_at);
+    startExpiryCountdown(expiresAt);
+}
+
+function startPaymentMonitoring() {
+    if (!orderId) return;
+    
+    // Check payment status every 5 seconds
+    paymentCheckInterval = setInterval(() => {
+        checkPaymentStatus();
+    }, 5000);
+}
+
+function checkPaymentStatus() {
+    if (!orderId) return;
+    
+    fetch(`/api/payment-status/${orderId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                handlePaymentStatusUpdate(data);
+            } else {
+                console.error('Error checking payment status:', data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error checking payment status:', error);
+        });
+}
+
+function handlePaymentStatusUpdate(data) {
+    const statusText = document.getElementById('paymentStatusText');
+    const spinner = document.getElementById('paymentSpinner');
+    
+    switch (data.status) {
+        case 'paid':
+            if (paymentCheckInterval) {
+                clearInterval(paymentCheckInterval);
+                paymentCheckInterval = null;
+            }
+            
+            if (spinner) spinner.style.display = 'none';
+            if (statusText) statusText.innerHTML = '<i class="fas fa-check-circle text-success"></i> Payment confirmed!';
+            
+            // Deliver product
+            deliverProduct();
+            break;
+            
+        case 'expired':
+            if (paymentCheckInterval) {
+                clearInterval(paymentCheckInterval);
+                paymentCheckInterval = null;
+            }
+            
+            if (spinner) spinner.style.display = 'none';
+            if (statusText) statusText.innerHTML = '<i class="fas fa-clock text-danger"></i> Payment expired';
+            
+            showError('Payment window has expired. Please create a new payment request.');
+            break;
+            
+        case 'payment_pending':
+            if (statusText) statusText.textContent = data.message || 'Waiting for Lightning payment...';
+            break;
+            
+        default:
+            if (statusText) statusText.textContent = data.message || 'Processing...';
+    }
+}
+
+function deliverProduct() {
+    fetch(`/api/deliver-product/${orderId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showSuccess(data);
+            } else {
+                showError('Failed to deliver product: ' + data.error);
+            }
+        })
+        .catch(error => {
+            showError('Error delivering product: ' + error.message);
+        });
+}
+
+function showSuccess(deliveryData) {
+    document.getElementById('downloadInfo').innerHTML = `
+        <div class="mb-3">
+            <h6>Product: ${deliveryData.product_name}</h6>
+        </div>
+        <div class="d-grid">
+            <a href="${deliveryData.download_link}" class="btn btn-success btn-lg">
+                <i class="fas fa-download"></i> Download Now
+            </a>
+        </div>
+        <div class="mt-2">
+            <small class="text-muted">Download link expires in 24 hours</small>
+        </div>
+    `;
+    
+    const modal = new bootstrap.Modal(document.getElementById('successModal'));
+    modal.show();
+}
+
+function showError(message) {
+    document.getElementById('errorMessage').innerHTML = `
+        <div class="alert alert-danger">
+            <i class="fas fa-exclamation-triangle"></i>
+            ${message}
+        </div>
+    `;
+    
+    const modal = new bootstrap.Modal(document.getElementById('errorModal'));
+    modal.show();
+}
+
+function showPaymentStatus(status, message) {
+    const statusDiv = document.getElementById('paymentStatus');
+    
+    const statusIcons = {
+        creating: 'fas fa-cog fa-spin',
+        waiting: 'fas fa-clock',
+        processing: 'fas fa-spinner fa-spin',
+        success: 'fas fa-check-circle',
+        error: 'fas fa-exclamation-triangle'
+    };
+    
+    statusDiv.innerHTML = `
+        <div class="text-center">
+            <i class="${statusIcons[status] || 'fas fa-info-circle'} fa-3x mb-3"></i>
+            <h5>${message}</h5>
+        </div>
+    `;
+}
+
+function startExpiryCountdown(expiresAt) {
+    const countdownElement = document.getElementById('expiryCountdown');
+    if (!countdownElement) return;
+    
+    const updateCountdown = () => {
+        const now = new Date();
+        const timeLeft = expiresAt - now;
+        
+        if (timeLeft <= 0) {
+            countdownElement.textContent = '00:00';
+            countdownElement.className = 'text-danger fw-bold';
+            return;
+        }
+        
+        const minutes = Math.floor(timeLeft / 60000);
+        const seconds = Math.floor((timeLeft % 60000) / 1000);
+        
+        countdownElement.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        
+        if (minutes < 5) {
+            countdownElement.className = 'text-warning fw-bold';
+        }
+        if (minutes < 2) {
+            countdownElement.className = 'text-danger fw-bold';
+        }
+    };
+    
+    updateCountdown();
+    setInterval(updateCountdown, 1000);
+}
+
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        showToast('Invoice copied to clipboard!', 'success');
+    }).catch(err => {
+        console.error('Failed to copy: ', err);
+        showToast('Failed to copy to clipboard', 'error');
+    });
+}
+
+function cancelPayment() {
+    if (!orderId) {
+        window.location.href = '/store';
+        return;
+    }
+    
+    fetch(`/api/cancel-payment/${orderId}`, {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('Payment cancelled', 'info');
+        }
+        window.location.href = '/store';
+    })
+    .catch(error => {
+        console.error('Error cancelling payment:', error);
+        window.location.href = '/store';
+    });
+}
+
+function retryPayment() {
+    window.location.reload();
+}
+
+function showToast(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type === 'success' ? 'success' : type === 'error' ? 'danger' : 'info'} position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 1060; min-width: 300px;';
+    toast.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" onclick="this.parentElement.remove()"></button>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        if (toast.parentElement) {
+            toast.remove();
+        }
+    }, 3000);
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', function() {
+    if (paymentCheckInterval) {
+        clearInterval(paymentCheckInterval);
+    }
+});
+</script>
+{% endblock %}

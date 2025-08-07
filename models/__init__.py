@@ -1,1 +1,1 @@
-# Models package for Lightning Digital Marketplace
+# Lightning Digital Marketplace - Models Package

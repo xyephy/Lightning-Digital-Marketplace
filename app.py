@@ -8,6 +8,8 @@ A learning-focused Lightning commerce platform built with Flask.
 from flask import Flask, render_template, jsonify, request
 from flask_cors import CORS
 from services.polar_service import PolarService
+from services.payment_service import PaymentService
+from models.product import ProductService
 from config import config
 import os
 
@@ -23,6 +25,8 @@ CORS(app, origins=app.config['CORS_ORIGINS'])
 
 # Initialize services
 polar_service = PolarService()
+payment_service = PaymentService()
+product_service = ProductService()
 
 # Routes
 @app.route('/')
@@ -63,31 +67,234 @@ def connection_status():
 def stage_info():
     """Get current stage information and next steps"""
     return jsonify({
-        'current_stage': 'Stage 1: Foundation',
-        'description': 'Basic Flask app connected to Polar Lightning',
+        'current_stage': 'Stage 2: Commerce Core',
+        'description': 'Product catalog with Lightning payment integration',
         'completed_features': [
             '✅ Flask application setup and routing',
             '✅ Environment variable management', 
             '✅ Polar Lightning node connection',
             '✅ Basic Lightning API integration',
-            '✅ Clean project structure'
+            '✅ Clean project structure',
+            '✅ Product catalog with sample digital products',
+            '✅ Shopping cart functionality',
+            '✅ Lightning invoice generation', 
+            '✅ QR code display for payments',
+            '✅ Basic payment verification'
         ],
-        'next_stage': 'Stage 2: Commerce Core',
+        'next_stage': 'Stage 3: Real-Time Features',
         'next_features': [
-            '🔄 Product catalog with sample digital products',
-            '🔄 Shopping cart functionality',
-            '🔄 Lightning invoice generation', 
-            '🔄 QR code display for payments',
-            '🔄 Basic payment verification'
+            '🔄 WebSocket integration for real-time updates',
+            '🔄 Live payment status notifications',
+            '🔄 Real-time order tracking',
+            '🔄 Interactive payment flow'
         ],
         'learning_objectives': [
-            'Understanding Flask web framework basics',
-            'Lightning Network node connectivity',
-            'API design and RESTful endpoints',
-            'Environment-based configuration',
-            'Clean code architecture'
+            'E-commerce product management',
+            'Lightning Network payment flow',
+            'QR code generation and handling',
+            'Order lifecycle management',
+            'Payment status monitoring'
         ]
     })
+
+# Stage 2: Commerce Core Routes
+
+@app.route('/store')
+def store():
+    """Product store page"""
+    return render_template('store.html', stage='Stage 2: Commerce Core')
+
+@app.route('/checkout/<int:product_id>')
+def checkout(product_id):
+    """Checkout page for specific product"""
+    return render_template('checkout.html', stage='Stage 2: Commerce Core')
+
+@app.route('/api/products')
+def get_products():
+    """Get all products"""
+    try:
+        products = product_service.get_all_products()
+        return jsonify({
+            'success': True,
+            'products': [p.to_dict() for p in products],
+            'count': len(products)
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/products/<int:product_id>')
+def get_product(product_id):
+    """Get specific product"""
+    try:
+        product = product_service.get_product_by_id(product_id)
+        if product:
+            return jsonify({
+                'success': True,
+                'product': product.to_dict()
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Product not found'
+            }), 404
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/products/search')
+def search_products():
+    """Search products"""
+    try:
+        query = request.args.get('q', '')
+        category = request.args.get('category', '')
+        
+        if query:
+            products = product_service.search_products(query)
+        elif category:
+            products = product_service.get_products_by_category(category)
+        else:
+            products = product_service.get_all_products()
+        
+        return jsonify({
+            'success': True,
+            'products': [p.to_dict() for p in products],
+            'count': len(products),
+            'query': query,
+            'category': category
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/categories')
+def get_categories():
+    """Get all product categories"""
+    try:
+        categories = product_service.get_categories()
+        return jsonify({
+            'success': True,
+            'categories': categories
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/create-payment', methods=['POST'])
+def create_payment():
+    """Create Lightning payment request"""
+    try:
+        data = request.get_json()
+        product_id = data.get('product_id')
+        customer_email = data.get('customer_email')
+        
+        if not product_id:
+            return jsonify({
+                'success': False,
+                'error': 'Product ID is required'
+            }), 400
+        
+        # Get product details
+        product = product_service.get_product_by_id(product_id)
+        if not product:
+            return jsonify({
+                'success': False,
+                'error': 'Product not found'
+            }), 404
+        
+        # Create payment request
+        payment_result = payment_service.create_payment_request(
+            product_id=product.id,
+            product_name=product.name,
+            price_sats=product.price_sats,
+            customer_email=customer_email
+        )
+        
+        return jsonify(payment_result)
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/payment-status/<order_id>')
+def check_payment_status(order_id):
+    """Check payment status"""
+    try:
+        result = payment_service.check_payment_status(order_id)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/deliver-product/<order_id>')
+def deliver_product(order_id):
+    """Deliver digital product"""
+    try:
+        result = payment_service.deliver_product(order_id)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/cancel-payment/<order_id>', methods=['POST'])
+def cancel_payment(order_id):
+    """Cancel payment request"""
+    try:
+        result = payment_service.cancel_payment(order_id)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/download/<order_id>/<int:product_id>')
+def download_product(order_id, product_id):
+    """Download digital product (demo endpoint)"""
+    try:
+        # Verify order and product
+        order_result = payment_service.get_order_details(order_id)
+        if not order_result['success']:
+            return jsonify({
+                'success': False,
+                'error': 'Invalid order'
+            }), 404
+        
+        order = order_result['order']
+        if order['status'] not in ['paid', 'delivered']:
+            return jsonify({
+                'success': False,
+                'error': 'Order not paid'
+            }), 403
+        
+        # For demo, return success message
+        return jsonify({
+            'success': True,
+            'message': 'In a real implementation, this would serve the digital file',
+            'order_id': order_id,
+            'product_id': product_id,
+            'demo_note': 'This is a demonstration download endpoint'
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 # Error handlers
 @app.errorhandler(404)
