@@ -156,7 +156,14 @@ function createPaymentRequest(product) {
         if (data.success) {
             orderId = data.order_id;
             displayPaymentRequest(data);
-            startPaymentMonitoring();
+            
+            // Start real-time monitoring instead of polling
+            if (window.lightningRealTime) {
+                window.lightningRealTime.startPaymentMonitoring(orderId);
+            } else {
+                // Fallback to polling if real-time not available
+                startPaymentMonitoring();
+            }
         } else {
             showError('Failed to create payment: ' + data.error);
         }
@@ -425,6 +432,17 @@ function cancelPayment() {
         return;
     }
     
+    // Stop real-time monitoring
+    if (window.lightningRealTime) {
+        window.lightningRealTime.stopPaymentMonitoring(orderId);
+    }
+    
+    // Stop polling if running
+    if (paymentCheckInterval) {
+        clearInterval(paymentCheckInterval);
+        paymentCheckInterval = null;
+    }
+    
     fetch(`/api/cancel-payment/${orderId}`, {
         method: 'POST'
     })
@@ -467,6 +485,11 @@ function showToast(message, type = 'info') {
 window.addEventListener('beforeunload', function() {
     if (paymentCheckInterval) {
         clearInterval(paymentCheckInterval);
+    }
+    
+    // Stop real-time monitoring
+    if (window.lightningRealTime && orderId) {
+        window.lightningRealTime.stopPaymentMonitoring(orderId);
     }
 });
 </script>

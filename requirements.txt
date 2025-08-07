@@ -10,9 +10,9 @@ flask-cors==4.0.0
 qrcode==7.4.2
 Pillow==10.0.0
 
-# Stage 3: Real-time features (will be added)
-# Flask-SocketIO==5.3.6
-# eventlet==0.33.3
+# Stage 3: Real-time features
+Flask-SocketIO==5.3.6
+eventlet==0.33.3
 
 # Development tools
 python-decouple==3.8

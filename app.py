@@ -7,8 +7,10 @@ A learning-focused Lightning commerce platform built with Flask.
 
 from flask import Flask, render_template, jsonify, request
 from flask_cors import CORS
+from flask_socketio import SocketIO
 from services.polar_service import PolarService
 from services.payment_service import PaymentService
+from services.websocket_service import WebSocketService, NotificationManager
 from models.product import ProductService
 from config import config
 import os
@@ -23,10 +25,15 @@ app.config.from_object(config[config_name])
 # Setup CORS
 CORS(app, origins=app.config['CORS_ORIGINS'])
 
+# Initialize SocketIO
+socketio = SocketIO(app, cors_allowed_origins=app.config['CORS_ORIGINS'])
+
 # Initialize services
 polar_service = PolarService()
 payment_service = PaymentService()
 product_service = ProductService()
+websocket_service = WebSocketService(socketio)
+notification_manager = NotificationManager(websocket_service)
 
 # Routes
 @app.route('/')
@@ -67,8 +74,8 @@ def connection_status():
 def stage_info():
     """Get current stage information and next steps"""
     return jsonify({
-        'current_stage': 'Stage 2: Commerce Core',
-        'description': 'Product catalog with Lightning payment integration',
+        'current_stage': 'Stage 3: Real-Time Features',
+        'description': 'WebSocket integration with live payment updates',
         'completed_features': [
             '✅ Flask application setup and routing',
             '✅ Environment variable management', 
@@ -79,21 +86,25 @@ def stage_info():
             '✅ Shopping cart functionality',
             '✅ Lightning invoice generation', 
             '✅ QR code display for payments',
-            '✅ Basic payment verification'
+            '✅ Basic payment verification',
+            '✅ WebSocket integration for real-time updates',
+            '✅ Live payment status notifications',
+            '✅ Real-time order tracking',
+            '✅ Interactive payment flow'
         ],
-        'next_stage': 'Stage 3: Real-Time Features',
+        'next_stage': 'Stage 4: Production Ready',
         'next_features': [
-            '🔄 WebSocket integration for real-time updates',
-            '🔄 Live payment status notifications',
-            '🔄 Real-time order tracking',
-            '🔄 Interactive payment flow'
+            '🔄 Multiple Lightning backend support (Polar/Phoenix/Breeze)',
+            '🔄 Environment-based configuration',
+            '🔄 Production deployment setup',
+            '🔄 Real Lightning network transactions'
         ],
         'learning_objectives': [
-            'E-commerce product management',
-            'Lightning Network payment flow',
-            'QR code generation and handling',
-            'Order lifecycle management',
-            'Payment status monitoring'
+            'WebSocket real-time communication',
+            'Event-driven architecture',
+            'Live payment monitoring',
+            'User experience enhancement',
+            'Background task management'
         ]
     })
 
@@ -218,6 +229,16 @@ def create_payment():
             customer_email=customer_email
         )
         
+        # Start real-time monitoring if payment was created successfully
+        if payment_result.get('success') and payment_result.get('order_id'):
+            order_id = payment_result['order_id']
+            
+            # Notify about payment creation
+            notification_manager.payment_created(order_id, payment_result)
+            
+            # Start background monitoring
+            websocket_service.start_payment_monitoring(order_id, payment_service)
+        
         return jsonify(payment_result)
         
     except Exception as e:
@@ -255,7 +276,56 @@ def cancel_payment(order_id):
     """Cancel payment request"""
     try:
         result = payment_service.cancel_payment(order_id)
+        
+        # Stop real-time monitoring
+        websocket_service.stop_payment_monitoring(order_id)
+        
+        # Notify about cancellation
+        if result.get('success'):
+            websocket_service.broadcast_payment_update(order_id, {
+                'type': 'payment_cancelled',
+                'status': 'cancelled',
+                'message': 'Payment was cancelled by user'
+            })
+        
         return jsonify(result)
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+# Stage 3: Real-Time Features Routes
+
+@app.route('/api/websocket/stats')
+def websocket_stats():
+    """Get WebSocket connection statistics"""
+    try:
+        stats = websocket_service.get_room_stats()
+        return jsonify({
+            'success': True,
+            'stats': stats
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/notify/test', methods=['POST'])
+def test_notification():
+    """Test endpoint for sending notifications"""
+    try:
+        data = request.get_json()
+        message = data.get('message', 'Test notification')
+        notification_type = data.get('type', 'info')
+        
+        websocket_service.send_general_notification(message, notification_type)
+        
+        return jsonify({
+            'success': True,
+            'message': 'Notification sent successfully'
+        })
     except Exception as e:
         return jsonify({
             'success': False,
@@ -308,20 +378,26 @@ def internal_error(error):
     return jsonify({'error': 'Internal server error', 'stage': 'Stage 1'}), 500
 
 if __name__ == '__main__':
-    print("🚀 Lightning Digital Marketplace - Stage 1: Foundation")
-    print("=" * 50)
-    print("📍 Starting Flask development server...")
+    print("🚀 Lightning Digital Marketplace - Stage 3: Real-Time Features")
+    print("=" * 60)
+    print("📍 Starting Flask-SocketIO development server...")
     print(f"⚡ Lightning Backend: {app.config['LIGHTNING_BACKEND']}")
     print(f"🌐 Polar Network: {app.config['POLAR_NETWORK']}")
     print("🔗 Available endpoints:")
     print("   • http://localhost:5000 - Home page")
+    print("   • http://localhost:5000/store - Digital store")
     print("   • http://localhost:5000/api/health - Health check")
-    print("   • http://localhost:5000/api/node-info - Lightning node info")
-    print("   • http://localhost:5000/api/connection-status - Polar status")
-    print("   • http://localhost:5000/api/stage-info - Current stage info")
-    print("=" * 50)
+    print("   • http://localhost:5000/api/products - Product catalog")
+    print("   • http://localhost:5000/api/websocket/stats - WebSocket stats")
+    print("🔄 Real-time features:")
+    print("   • Live payment status updates")
+    print("   • Real-time order tracking")
+    print("   • WebSocket notifications")
+    print("   • Background payment monitoring")
+    print("=" * 60)
     
-    app.run(
+    socketio.run(
+        app,
         host='0.0.0.0',
         port=5000,
         debug=app.config['DEBUG']
