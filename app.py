@@ -11,6 +11,7 @@ from flask_socketio import SocketIO
 from services.polar_service import PolarService
 from services.payment_service import PaymentService
 from services.websocket_service import WebSocketService, NotificationManager
+from services.lightning.lightning_factory import LightningFactory
 from models.product import ProductService
 from config import config
 import os
@@ -30,6 +31,7 @@ socketio = SocketIO(app, cors_allowed_origins=app.config['CORS_ORIGINS'])
 
 # Initialize services
 polar_service = PolarService()
+lightning_service = LightningFactory.create_service()
 payment_service = PaymentService()
 product_service = ProductService()
 websocket_service = WebSocketService(socketio)
@@ -74,8 +76,8 @@ def connection_status():
 def stage_info():
     """Get current stage information and next steps"""
     return jsonify({
-        'current_stage': 'Stage 3: Real-Time Features',
-        'description': 'WebSocket integration with live payment updates',
+        'current_stage': 'Stage 4: Production Ready',
+        'description': 'Multiple Lightning backends with production deployment',
         'completed_features': [
             '✅ Flask application setup and routing',
             '✅ Environment variable management', 
@@ -90,21 +92,25 @@ def stage_info():
             '✅ WebSocket integration for real-time updates',
             '✅ Live payment status notifications',
             '✅ Real-time order tracking',
-            '✅ Interactive payment flow'
+            '✅ Interactive payment flow',
+            '✅ Multiple Lightning backend support (Polar/Phoenix/Breeze/LND/CLN)',
+            '✅ Environment-based configuration',
+            '✅ Production deployment setup',
+            '✅ Real Lightning network transactions'
         ],
-        'next_stage': 'Stage 4: Production Ready',
+        'next_stage': 'Stage 5: Advanced Business Features',
         'next_features': [
-            '🔄 Multiple Lightning backend support (Polar/Phoenix/Breeze)',
-            '🔄 Environment-based configuration',
-            '🔄 Production deployment setup',
-            '🔄 Real Lightning network transactions'
+            '🔄 Sales analytics dashboard',
+            '🔄 Subscription payment models',
+            '🔄 Customer management system',
+            '🔄 Business intelligence metrics'
         ],
         'learning_objectives': [
-            'WebSocket real-time communication',
-            'Event-driven architecture',
-            'Live payment monitoring',
-            'User experience enhancement',
-            'Background task management'
+            'Multiple Lightning backend integration',
+            'Production deployment strategies',
+            'Environment-based configuration',
+            'Real Lightning network operations',
+            'Service abstraction patterns'
         ]
     })
 
@@ -295,6 +301,80 @@ def cancel_payment(order_id):
             'error': str(e)
         }), 500
 
+# Stage 4: Production Ready Routes
+
+@app.route('/api/lightning/backends')
+def get_lightning_backends():
+    """Get available Lightning backends"""
+    try:
+        backends = LightningFactory.get_available_backends()
+        current_backend = app.config.get('LIGHTNING_BACKEND', 'polar')
+        
+        return jsonify({
+            'success': True,
+            'current_backend': current_backend,
+            'available_backends': backends
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/lightning/validate/<backend_type>')
+def validate_lightning_backend(backend_type):
+    """Validate Lightning backend configuration"""
+    try:
+        validation = LightningFactory.validate_backend_config(backend_type)
+        return jsonify({
+            'success': True,
+            'validation': validation
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/lightning/test/<backend_type>')
+def test_lightning_backend(backend_type):
+    """Test Lightning backend connection"""
+    try:
+        test_result = LightningFactory.test_backend_connection(backend_type)
+        return jsonify({
+            'success': True,
+            'test_result': test_result
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/lightning/node-info')
+def get_lightning_node_info():
+    """Get current Lightning backend node info"""
+    try:
+        node_info = lightning_service.get_node_info()
+        return jsonify(node_info)
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/lightning/balance')
+def get_lightning_balance():
+    """Get Lightning wallet balance"""
+    try:
+        balance = lightning_service.get_balance()
+        return jsonify(balance)
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 # Stage 3: Real-Time Features Routes
 
 @app.route('/api/websocket/stats')
@@ -378,23 +458,23 @@ def internal_error(error):
     return jsonify({'error': 'Internal server error', 'stage': 'Stage 1'}), 500
 
 if __name__ == '__main__':
-    print("🚀 Lightning Digital Marketplace - Stage 3: Real-Time Features")
-    print("=" * 60)
-    print("📍 Starting Flask-SocketIO development server...")
-    print(f"⚡ Lightning Backend: {app.config['LIGHTNING_BACKEND']}")
-    print(f"🌐 Polar Network: {app.config['POLAR_NETWORK']}")
+    print("🚀 Lightning Digital Marketplace - Stage 4: Production Ready")
+    print("=" * 70)
+    print("📍 Starting Flask-SocketIO production server...")
+    print(f"⚡ Lightning Backend: {app.config.get('LIGHTNING_BACKEND', 'polar')}")
+    print(f"🌐 Network: {app.config.get('LIGHTNING_NETWORK', 'regtest')}")
     print("🔗 Available endpoints:")
     print("   • http://localhost:5000 - Home page")
     print("   • http://localhost:5000/store - Digital store")
     print("   • http://localhost:5000/api/health - Health check")
-    print("   • http://localhost:5000/api/products - Product catalog")
-    print("   • http://localhost:5000/api/websocket/stats - WebSocket stats")
-    print("🔄 Real-time features:")
-    print("   • Live payment status updates")
-    print("   • Real-time order tracking")
-    print("   • WebSocket notifications")
-    print("   • Background payment monitoring")
-    print("=" * 60)
+    print("   • http://localhost:5000/api/lightning/backends - Lightning backends")
+    print("   • http://localhost:5000/api/lightning/balance - Wallet balance")
+    print("🔄 Production features:")
+    print("   • Multiple Lightning backend support")
+    print("   • Environment-based configuration")
+    print("   • Production deployment ready")
+    print("   • Real Lightning network transactions")
+    print("=" * 70)
     
     socketio.run(
         app,

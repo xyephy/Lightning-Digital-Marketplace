@@ -49,6 +49,11 @@ class TestingConfig(Config):
     TESTING = True
     DATABASE_URL = 'sqlite:///test_marketplace.db'
 
+# Import environment-specific configurations
+from config.development import DevelopmentConfig
+from config.production import ProductionConfig
+from config.testing import TestingConfig
+
 # Configuration mapping
 config = {
     'development': DevelopmentConfig,
