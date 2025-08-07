@@ -1,0 +1,11 @@
+# Lightning Digital Marketplace - Stage 1 Dependencies
+# Basic Flask application with Lightning integration
+
+Flask==2.3.3
+python-dotenv==1.0.0
+requests==2.31.0
+flask-cors==4.0.0
+
+# Development tools
+python-decouple==3.8
+

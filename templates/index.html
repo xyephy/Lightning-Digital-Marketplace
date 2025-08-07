@@ -1,0 +1,365 @@
+{% extends "base.html" %}
+
+{% block title %}Lightning Digital Marketplace - Stage 1{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Welcome Section -->
+    <div class="col-12 mb-4">
+        <div class="hero-section bg-gradient-primary text-white p-5 rounded">
+            <div class="text-center">
+                <h1 class="display-4 mb-3">
+                    <i class="fas fa-bolt text-warning"></i>
+                    Lightning Digital Marketplace
+                </h1>
+                <p class="lead mb-4">
+                    Welcome to Stage 1: Foundation Setup
+                </p>
+                <p class="mb-4">
+                    Learn Lightning Network development step-by-step, building a complete commerce platform.
+                </p>
+                <div class="d-flex justify-content-center gap-3">
+                    <button class="btn btn-warning btn-lg" onclick="testConnection()">
+                        <i class="fas fa-plug"></i> Test Lightning Connection
+                    </button>
+                    <button class="btn btn-outline-light btn-lg" onclick="loadStageInfo()">
+                        <i class="fas fa-info-circle"></i> Stage Information
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Lightning Connection Status -->
+    <div class="col-lg-8 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-network-wired"></i>
+                    Lightning Network Status
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="connection-status" class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Checking connection...</span>
+                    </div>
+                    <p class="mt-2">Checking Polar Lightning connection...</p>
+                </div>
+                
+                <div id="node-details" class="mt-4" style="display: none;">
+                    <!-- Node details will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stage Information -->
+    <div class="col-lg-4 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-layer-group"></i>
+                    Current Stage
+                </h5>
+            </div>
+            <div class="card-body">
+                <h6 class="text-primary">Stage 1: Foundation</h6>
+                <p class="card-text">Basic Flask app connected to Polar Lightning Network.</p>
+                
+                <div class="mb-3">
+                    <h6>Success Criteria:</h6>
+                    <ul class="list-unstyled">
+                        <li><i class="fas fa-check text-success"></i> Flask app running</li>
+                        <li><i class="fas fa-check text-success"></i> Environment variables</li>
+                        <li id="criteria-connection"><i class="fas fa-clock text-warning"></i> Lightning connection</li>
+                        <li><i class="fas fa-check text-success"></i> Basic routing</li>
+                        <li><i class="fas fa-check text-success"></i> Clean UI foundation</li>
+                    </ul>
+                </div>
+
+                <div class="d-grid">
+                    <button class="btn btn-primary" onclick="loadStageInfo()">
+                        View Stage Details
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Stage Information Modal -->
+<div class="modal fade" id="stageInfoModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-info-circle"></i>
+                    Stage Information
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="stage-info-content">
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status"></div>
+                        <p class="mt-2">Loading stage information...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- API Testing Section -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-code"></i>
+                    API Testing & Learning
+                </h5>
+            </div>
+            <div class="card-body">
+                <p>Test the Lightning API endpoints and see the responses:</p>
+                
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <button class="btn btn-outline-primary w-100" onclick="testAPI('/api/health')">
+                            <i class="fas fa-heart"></i> Health Check
+                        </button>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <button class="btn btn-outline-primary w-100" onclick="testAPI('/api/node-info')">
+                            <i class="fas fa-server"></i> Alice Node Info
+                        </button>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <button class="btn btn-outline-primary w-100" onclick="testAPI('/api/all-nodes')">
+                            <i class="fas fa-network-wired"></i> All Nodes
+                        </button>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <button class="btn btn-outline-primary w-100" onclick="testAPI('/api/stage-info')">
+                            <i class="fas fa-layer-group"></i> Stage Info
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="mt-3">
+                    <h6>API Response:</h6>
+                    <pre id="api-response" class="bg-light p-3 rounded" style="max-height: 300px; overflow-y: auto;">
+Click an API button above to see the response...</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Next Steps -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card border-success">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-arrow-right"></i>
+                    Next Steps
+                </h5>
+            </div>
+            <div class="card-body">
+                <h6>Ready for Stage 2: Commerce Core?</h6>
+                <p>Once you've verified the Lightning connection, you'll be ready to add:</p>
+                <ul>
+                    <li><strong>Product Catalog</strong> - Browse digital products</li>
+                    <li><strong>Shopping Cart</strong> - Add/remove items</li>
+                    <li><strong>Lightning Checkout</strong> - Generate payment invoices</li>
+                    <li><strong>QR Code Payments</strong> - Mobile-friendly payment flow</li>
+                    <li><strong>Payment Verification</strong> - Confirm Lightning payments</li>
+                </ul>
+                
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Learning Tip:</strong> Make sure to understand how the Polar service connects to Lightning nodes before proceeding to Stage 2.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Lightning connection testing
+function testConnection() {
+    const statusDiv = document.getElementById('connection-status');
+    statusDiv.innerHTML = `
+        <div class="spinner-border text-primary" role="status"></div>
+        <p class="mt-2">Testing Lightning connection...</p>
+    `;
+    
+    fetch('/api/connection-status')
+        .then(response => response.json())
+        .then(data => {
+            displayConnectionStatus(data);
+            updateSuccessCriteria(data.polar_running);
+        })
+        .catch(error => {
+            statusDiv.innerHTML = `
+                <div class="text-danger">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <h6>Connection Failed</h6>
+                    <p>Error: ${error.message}</p>
+                    <small>Make sure Polar Lightning is running</small>
+                </div>
+            `;
+        });
+}
+
+function displayConnectionStatus(data) {
+    const statusDiv = document.getElementById('connection-status');
+    const nodeDetailsDiv = document.getElementById('node-details');
+    
+    if (data.polar_running) {
+        statusDiv.innerHTML = `
+            <div class="text-success">
+                <i class="fas fa-check-circle fa-3x"></i>
+                <h4 class="mt-2">Lightning Connected!</h4>
+                <p>${data.nodes_connected}/${data.total_nodes} nodes connected</p>
+            </div>
+        `;
+        
+        // Show node details
+        let nodeHTML = '<h6>Node Details:</h6><div class="row">';
+        for (const [nodeName, nodeInfo] of Object.entries(data.node_details)) {
+            const statusIcon = nodeInfo.success ? 'fa-check-circle text-success' : 'fa-times-circle text-danger';
+            nodeHTML += `
+                <div class="col-md-4 mb-2">
+                    <div class="card">
+                        <div class="card-body p-2">
+                            <h6 class="card-title">
+                                <i class="fas ${statusIcon}"></i>
+                                ${nodeInfo.node_name}
+                            </h6>
+                            ${nodeInfo.success ? `
+                                <small>
+                                    Alias: ${nodeInfo.alias}<br>
+                                    Channels: ${nodeInfo.num_active_channels}<br>
+                                    Peers: ${nodeInfo.num_peers}
+                                </small>
+                            ` : `
+                                <small class="text-danger">${nodeInfo.error}</small>
+                            `}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        nodeHTML += '</div>';
+        nodeDetailsDiv.innerHTML = nodeHTML;
+        nodeDetailsDiv.style.display = 'block';
+        
+    } else {
+        statusDiv.innerHTML = `
+            <div class="text-warning">
+                <i class="fas fa-exclamation-triangle fa-3x"></i>
+                <h4 class="mt-2">Polar Not Connected</h4>
+                <p>Please start Polar Lightning Network</p>
+                <button class="btn btn-primary" onclick="testConnection()">Retry Connection</button>
+            </div>
+        `;
+        nodeDetailsDiv.style.display = 'none';
+    }
+}
+
+function updateSuccessCriteria(connected) {
+    const criteriaElement = document.getElementById('criteria-connection');
+    if (connected) {
+        criteriaElement.innerHTML = '<i class="fas fa-check text-success"></i> Lightning connection';
+    } else {
+        criteriaElement.innerHTML = '<i class="fas fa-times text-danger"></i> Lightning connection';
+    }
+}
+
+// API testing functionality
+function testAPI(endpoint) {
+    const responseDiv = document.getElementById('api-response');
+    responseDiv.textContent = 'Loading...';
+    
+    fetch(endpoint)
+        .then(response => response.json())
+        .then(data => {
+            responseDiv.textContent = JSON.stringify(data, null, 2);
+        })
+        .catch(error => {
+            responseDiv.textContent = `Error: ${error.message}`;
+        });
+}
+
+// Load stage information
+function loadStageInfo() {
+    fetch('/api/stage-info')
+        .then(response => response.json())
+        .then(data => {
+            displayStageInfo(data);
+            const modal = new bootstrap.Modal(document.getElementById('stageInfoModal'));
+            modal.show();
+        })
+        .catch(error => {
+            document.getElementById('stage-info-content').innerHTML = `
+                <div class="text-danger">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Error loading stage information: ${error.message}
+                </div>
+            `;
+        });
+}
+
+function displayStageInfo(data) {
+    const content = document.getElementById('stage-info-content');
+    content.innerHTML = `
+        <div class="mb-4">
+            <h6 class="text-primary">${data.current_stage}</h6>
+            <p>${data.description}</p>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Completed Features:</h6>
+                <ul class="list-unstyled">
+                    ${data.completed_features.map(feature => `<li>${feature}</li>`).join('')}
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <h6>Next Stage Features:</h6>
+                <ul class="list-unstyled">
+                    ${data.next_features.map(feature => `<li>${feature}</li>`).join('')}
+                </ul>
+            </div>
+        </div>
+        
+        <div class="mt-4">
+            <h6>Learning Objectives:</h6>
+            <ul>
+                ${data.learning_objectives.map(obj => `<li>${obj}</li>`).join('')}
+            </ul>
+        </div>
+        
+        <div class="alert alert-success">
+            <strong>Next:</strong> ${data.next_stage}
+        </div>
+    `;
+}
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    testConnection();
+});
+</script>
+{% endblock %}
+
