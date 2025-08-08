@@ -130,14 +130,123 @@ class PolarService:
             results[node_name] = self.get_node_info(node_name)
         return results
     
-    def create_invoice(self, node_name: str, amount_sats: int, description: str) -> Optional[Dict]:
-        """Create a Lightning invoice (Stage 2 functionality preview)"""
-        # This will be implemented in Stage 2
-        return {
-            'success': False,
-            'error': 'Invoice creation will be implemented in Stage 2',
-            'stage': 'Stage 2: Commerce Core'
-        }
+    def create_invoice(self, node: str, amount_sats: int, description: str, expiry: int = 900) -> Dict[str, Any]:
+        """Create a Lightning invoice using LND REST API"""
+        try:
+            node_config = self.nodes.get(node, self.nodes['alice'])
+            macaroon_hex = self.load_macaroon(node)
+            
+            if not macaroon_hex:
+                print(f"ERROR: Could not load macaroon for node {node}")
+                return {
+                    'success': False,
+                    'error': f'Could not load macaroon for node {node}'
+                }
+            
+            url = f"https://localhost:{node_config['port']}/v1/invoices"
+            headers = {
+                'Grpc-Metadata-macaroon': macaroon_hex,
+                'Content-Type': 'application/json'
+            }
+            
+            data = {
+                'value': amount_sats,
+                'memo': description,
+                'expiry': expiry
+            }
+            
+            print(f"DEBUG: Creating invoice - URL: {url}")
+            print(f"DEBUG: Data: {data}")
+            print(f"DEBUG: Headers: {list(headers.keys())}")
+            
+            response = requests.post(
+                url, 
+                json=data, 
+                headers=headers, 
+                verify=False,  # Skip SSL verification for local development
+                timeout=10
+            )
+            
+            print(f"DEBUG: Response status: {response.status_code}")
+            print(f"DEBUG: Response text: {response.text}")
+            
+            if response.status_code == 200:
+                invoice_data = response.json()
+                print(f"SUCCESS: Invoice created - {invoice_data.get('payment_request', '')[:50]}...")
+                return {
+                    'success': True,
+                    'payment_request': invoice_data['payment_request'],
+                    'payment_hash': invoice_data.get('r_hash', ''),
+                    'add_index': invoice_data.get('add_index', ''),
+                    'payment_addr': invoice_data.get('payment_addr', '')
+                }
+            else:
+                error_msg = f'Failed to create invoice: HTTP {response.status_code} - {response.text}'
+                print(f"ERROR: {error_msg}")
+                return {
+                    'success': False,
+                    'error': error_msg
+                }
+                
+        except Exception as e:
+            error_msg = f'Error creating invoice: {str(e)}'
+            print(f"ERROR: {error_msg}")
+            return {
+                'success': False,
+                'error': error_msg
+            }
+    
+    def lookup_invoice(self, node: str, payment_hash: str) -> Dict[str, Any]:
+        """Check if a Lightning invoice has been paid"""
+        try:
+            node_config = self.nodes.get(node, self.nodes['alice'])
+            macaroon_hex = self.load_macaroon(node)
+            
+            if not macaroon_hex:
+                return {
+                    'success': False,
+                    'error': f'Could not load macaroon for node {node}'
+                }
+            
+            # Decode base64 payment hash for URL
+            import base64
+            payment_hash_bytes = base64.b64decode(payment_hash)
+            payment_hash_hex = payment_hash_bytes.hex()
+            
+            url = f"https://localhost:{node_config['port']}/v1/invoice/{payment_hash_hex}"
+            headers = {
+                'Grpc-Metadata-macaroon': macaroon_hex,
+                'Content-Type': 'application/json'
+            }
+            
+            response = requests.get(
+                url, 
+                headers=headers, 
+                verify=False,
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                invoice_data = response.json()
+                return {
+                    'success': True,
+                    'settled': invoice_data.get('settled', False),
+                    'state': invoice_data.get('state', 'OPEN'),
+                    'value': invoice_data.get('value', 0),
+                    'settle_date': invoice_data.get('settle_date', 0),
+                    'creation_date': invoice_data.get('creation_date', 0)
+                }
+            else:
+                return {
+                    'success': False,
+                    'error': f'Failed to lookup invoice: HTTP {response.status_code} - {response.text}'
+                }
+                
+        except Exception as e:
+            return {
+                'success': False,
+                'error': f'Error looking up invoice: {str(e)}'
+            }
     
     def check_connection_status(self) -> Dict[str, Any]:
         """Check the connection status of all nodes"""

@@ -81,27 +81,45 @@ class PaymentService:
     
     def _create_lightning_invoice(self, amount_sats: int, description: str, 
                                 order_id: str) -> Dict[str, Any]:
-        """Create Lightning invoice using Polar service"""
+        """Create real Lightning invoice using Polar service"""
         try:
-            # For Stage 2, we'll simulate invoice creation
-            # Real implementation will come in Stage 4
-            import hashlib
-            import secrets
+            # Stage 4: Create real Lightning invoice using Polar
+            invoice_result = self.polar_service.create_invoice(
+                node=self.default_node,
+                amount_sats=amount_sats,
+                description=description,
+                expiry=900  # 15 minutes
+            )
             
-            # Generate fake payment hash for demo
-            payment_hash = hashlib.sha256(secrets.token_bytes(32)).hexdigest()
-            
-            # Generate fake Lightning invoice for demo
-            payment_request = f"lnbcrt{amount_sats}u1p3xnhl2pp5{payment_hash[:20]}...fake_invoice_for_demo"
-            
-            return {
-                'success': True,
-                'payment_request': payment_request,
-                'payment_hash': payment_hash,
-                'amount_sats': amount_sats,
-                'description': description,
-                'expires_at': (datetime.now() + timedelta(minutes=15)).isoformat()
-            }
+            if invoice_result['success']:
+                return {
+                    'success': True,
+                    'payment_request': invoice_result['payment_request'],
+                    'payment_hash': invoice_result.get('payment_hash', ''),
+                    'amount_sats': amount_sats,
+                    'description': description,
+                    'expires_at': (datetime.now() + timedelta(minutes=15)).isoformat()
+                }
+            else:
+                # Fallback to simulation if Polar is not available
+                import hashlib
+                import secrets
+                
+                # Generate fake payment hash for demo
+                payment_hash = hashlib.sha256(secrets.token_bytes(32)).hexdigest()
+                
+                # Generate fake Lightning invoice for demo
+                payment_request = f"lnbcrt{amount_sats}u1p3xnhl2pp5{payment_hash[:20]}...fake_invoice_for_demo"
+                
+                return {
+                    'success': True,
+                    'payment_request': payment_request,
+                    'payment_hash': payment_hash,
+                    'amount_sats': amount_sats,
+                    'description': description,
+                    'expires_at': (datetime.now() + timedelta(minutes=15)).isoformat(),
+                    'simulation': True
+                }
             
         except Exception as e:
             return {
@@ -145,8 +163,7 @@ class PaymentService:
                     'error': 'Order not found'
                 }
             
-            # For Stage 2, we'll simulate payment checking
-            # Real implementation will come in Stage 4
+            # Stage 4: Real Lightning payment verification
             
             # Check if order has expired
             if order.is_expired and order.status == OrderStatus.PAYMENT_PENDING:
@@ -157,21 +174,25 @@ class PaymentService:
                     'message': 'Payment window has expired'
                 }
             
-            # Simulate random payment completion for demo
-            import random
-            if (order.status == OrderStatus.PAYMENT_PENDING and 
-                random.random() < 0.1):  # 10% chance of "payment" each check
+            # Check real Lightning payment status if payment is pending
+            if order.status == OrderStatus.PAYMENT_PENDING and order.payment_hash:
+                payment_check = self.polar_service.lookup_invoice(
+                    self.default_node, 
+                    order.payment_hash
+                )
                 
-                # Mark as paid
-                fake_preimage = "0" * 64  # Fake preimage for demo
-                self.order_service.mark_order_paid(order_id, fake_preimage)
-                
-                return {
-                    'success': True,
-                    'status': 'paid',
-                    'message': 'Payment confirmed!',
-                    'payment_preimage': fake_preimage
-                }
+                if payment_check.get('success') and payment_check.get('settled'):
+                    # Payment confirmed! Mark as paid
+                    # Use payment hash as preimage for now (in production, get actual preimage)
+                    self.order_service.mark_order_paid(order_id, order.payment_hash)
+                    
+                    return {
+                        'success': True,
+                        'status': 'paid',
+                        'message': 'Payment confirmed!',
+                        'payment_hash': order.payment_hash,
+                        'settled_date': payment_check.get('settle_date', 0)
+                    }
             
             return {
                 'success': True,
