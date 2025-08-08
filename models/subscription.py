@@ -1,14 +1,12 @@
 """
-Lightning Digital Marketplace - Subscription Models
+Lightning Digital Marketplace - Subscription Model
 Stage 5: Advanced Business Features
-
-Data models for subscription management and recurring payments
 """
 
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from typing import Optional, Dict, Any, List
 from enum import Enum
-from typing import Dict, List, Optional, Any
-import json
 
 class SubscriptionStatus(Enum):
     """Subscription status enumeration"""
@@ -18,243 +16,248 @@ class SubscriptionStatus(Enum):
     EXPIRED = "expired"
     PENDING = "pending"
 
-class SubscriptionPlan:
-    """Subscription plan model"""
-    
-    def __init__(self, plan_id: str, name: str, description: str, 
-                 price_sats: int, billing_interval: str, features: List[str],
-                 trial_days: int = 0):
-        self.plan_id = plan_id
-        self.name = name
-        self.description = description
-        self.price_sats = price_sats
-        self.billing_interval = billing_interval  # 'monthly', 'yearly', 'weekly'
-        self.features = features
-        self.trial_days = trial_days
-        self.created_at = datetime.now()
-        self.is_active = True
-    
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert plan to dictionary"""
-        return {
-            'plan_id': self.plan_id,
-            'name': self.name,
-            'description': self.description,
-            'price_sats': self.price_sats,
-            'billing_interval': self.billing_interval,
-            'features': self.features,
-            'trial_days': self.trial_days,
-            'created_at': self.created_at.isoformat(),
-            'is_active': self.is_active
-        }
-    
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'SubscriptionPlan':
-        """Create plan from dictionary"""
-        plan = cls(
-            plan_id=data['plan_id'],
-            name=data['name'],
-            description=data['description'],
-            price_sats=data['price_sats'],
-            billing_interval=data['billing_interval'],
-            features=data['features'],
-            trial_days=data.get('trial_days', 0)
-        )
-        plan.created_at = datetime.fromisoformat(data['created_at'])
-        plan.is_active = data.get('is_active', True)
-        return plan
+class SubscriptionPlan(Enum):
+    """Subscription plan types"""
+    BASIC = "basic"
+    PREMIUM = "premium"
+    ENTERPRISE = "enterprise"
 
+@dataclass
 class Subscription:
-    """Customer subscription model"""
+    """Subscription model for recurring Lightning payments"""
+    id: str
+    customer_email: str
+    plan: SubscriptionPlan
+    price_sats_per_month: int
+    status: SubscriptionStatus = SubscriptionStatus.PENDING
+    created_at: datetime = field(default_factory=datetime.now)
+    started_at: Optional[datetime] = None
+    next_payment_at: Optional[datetime] = None
+    cancelled_at: Optional[datetime] = None
+    last_payment_at: Optional[datetime] = None
+    failed_payments: int = 0
     
-    def __init__(self, subscription_id: str, customer_id: str, plan_id: str,
-                 status: SubscriptionStatus = SubscriptionStatus.PENDING):
-        self.subscription_id = subscription_id
-        self.customer_id = customer_id
-        self.plan_id = plan_id
-        self.status = status
-        self.created_at = datetime.now()
-        self.updated_at = datetime.now()
-        self.current_period_start = None
-        self.current_period_end = None
-        self.trial_end = None
-        self.cancelled_at = None
-        self.ended_at = None
-        self.payment_history: List[Dict[str, Any]] = []
-        self.metadata: Dict[str, Any] = {}
+    @property
+    def price_btc_per_month(self) -> float:
+        """Convert monthly satoshis to BTC"""
+        return self.price_sats_per_month / 100_000_000
     
-    def start_subscription(self, plan: SubscriptionPlan):
-        """Start the subscription with a plan"""
-        self.status = SubscriptionStatus.ACTIVE
-        self.current_period_start = datetime.now()
-        
-        # Set trial period if applicable
-        if plan.trial_days > 0:
-            self.trial_end = self.current_period_start + timedelta(days=plan.trial_days)
-            self.current_period_end = self.trial_end
-        else:
-            self.current_period_end = self._calculate_next_billing_date(plan.billing_interval)
-        
-        self.updated_at = datetime.now()
+    @property
+    def is_active(self) -> bool:
+        """Check if subscription is currently active"""
+        return self.status == SubscriptionStatus.ACTIVE
     
-    def _calculate_next_billing_date(self, billing_interval: str) -> datetime:
-        """Calculate next billing date based on interval"""
-        now = datetime.now()
-        if billing_interval == 'weekly':
-            return now + timedelta(weeks=1)
-        elif billing_interval == 'monthly':
-            return now + timedelta(days=30)
-        elif billing_interval == 'yearly':
-            return now + timedelta(days=365)
-        else:
-            raise ValueError(f"Unsupported billing interval: {billing_interval}")
-    
-    def add_payment(self, payment_hash: str, amount_sats: int, 
-                   invoice_data: Dict[str, Any]):
-        """Add payment to subscription history"""
-        payment_record = {
-            'payment_hash': payment_hash,
-            'amount_sats': amount_sats,
-            'payment_date': datetime.now().isoformat(),
-            'invoice_data': invoice_data,
-            'status': 'completed'
-        }
-        self.payment_history.append(payment_record)
-        self.updated_at = datetime.now()
-    
-    def cancel_subscription(self, reason: str = ""):
-        """Cancel the subscription"""
-        self.status = SubscriptionStatus.CANCELLED
-        self.cancelled_at = datetime.now()
-        self.updated_at = datetime.now()
-        if reason:
-            self.metadata['cancellation_reason'] = reason
-    
-    def pause_subscription(self):
-        """Pause the subscription"""
-        self.status = SubscriptionStatus.PAUSED
-        self.updated_at = datetime.now()
-    
-    def resume_subscription(self):
-        """Resume a paused subscription"""
-        if self.status == SubscriptionStatus.PAUSED:
-            self.status = SubscriptionStatus.ACTIVE
-            self.updated_at = datetime.now()
-    
-    def is_in_trial(self) -> bool:
-        """Check if subscription is in trial period"""
-        if not self.trial_end:
-            return False
-        return datetime.now() < self.trial_end
-    
-    def days_until_renewal(self) -> int:
-        """Get days until next renewal"""
-        if not self.current_period_end:
-            return 0
-        delta = self.current_period_end - datetime.now()
-        return max(0, delta.days)
-    
-    def total_revenue(self) -> int:
-        """Calculate total revenue from this subscription"""
-        return sum(payment['amount_sats'] for payment in self.payment_history)
+    @property
+    def days_until_next_payment(self) -> Optional[int]:
+        """Get days until next payment"""
+        if self.next_payment_at:
+            delta = self.next_payment_at - datetime.now()
+            return max(0, delta.days)
+        return None
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert subscription to dictionary"""
         return {
-            'subscription_id': self.subscription_id,
-            'customer_id': self.customer_id,
-            'plan_id': self.plan_id,
+            'id': self.id,
+            'customer_email': self.customer_email,
+            'plan': self.plan.value,
+            'price_sats_per_month': self.price_sats_per_month,
+            'price_btc_per_month': self.price_btc_per_month,
             'status': self.status.value,
-            'created_at': self.created_at.isoformat(),
-            'updated_at': self.updated_at.isoformat(),
-            'current_period_start': self.current_period_start.isoformat() if self.current_period_start else None,
-            'current_period_end': self.current_period_end.isoformat() if self.current_period_end else None,
-            'trial_end': self.trial_end.isoformat() if self.trial_end else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'started_at': self.started_at.isoformat() if self.started_at else None,
+            'next_payment_at': self.next_payment_at.isoformat() if self.next_payment_at else None,
             'cancelled_at': self.cancelled_at.isoformat() if self.cancelled_at else None,
-            'ended_at': self.ended_at.isoformat() if self.ended_at else None,
-            'payment_history': self.payment_history,
-            'metadata': self.metadata,
-            'is_in_trial': self.is_in_trial(),
-            'days_until_renewal': self.days_until_renewal(),
-            'total_revenue': self.total_revenue()
+            'last_payment_at': self.last_payment_at.isoformat() if self.last_payment_at else None,
+            'failed_payments': self.failed_payments,
+            'is_active': self.is_active,
+            'days_until_next_payment': self.days_until_next_payment
+        }
+
+class SubscriptionService:
+    """Service for managing subscriptions"""
+    
+    PLANS = {
+        SubscriptionPlan.BASIC: {
+            'name': 'Basic Plan',
+            'price_sats': 10000,  # 0.0001 BTC per month
+            'features': [
+                'Access to basic digital products',
+                'Lightning payment support',
+                'Email support'
+            ]
+        },
+        SubscriptionPlan.PREMIUM: {
+            'name': 'Premium Plan',
+            'price_sats': 25000,  # 0.00025 BTC per month
+            'features': [
+                'Access to all digital products',
+                'Priority Lightning transactions',
+                'Advanced analytics',
+                'Priority support'
+            ]
+        },
+        SubscriptionPlan.ENTERPRISE: {
+            'name': 'Enterprise Plan',
+            'price_sats': 50000,  # 0.0005 BTC per month
+            'features': [
+                'All Premium features',
+                'Custom Lightning integrations',
+                'API access',
+                'Dedicated account manager',
+                'Advanced reporting'
+            ]
+        }
+    }
+    
+    def __init__(self):
+        self._subscriptions: Dict[str, Subscription] = {}
+    
+    def create_subscription(self, customer_email: str, plan: SubscriptionPlan) -> Subscription:
+        """Create a new subscription"""
+        import uuid
+        
+        subscription_id = str(uuid.uuid4())[:8]
+        plan_info = self.PLANS[plan]
+        
+        subscription = Subscription(
+            id=subscription_id,
+            customer_email=customer_email,
+            plan=plan,
+            price_sats_per_month=plan_info['price_sats'],
+            status=SubscriptionStatus.PENDING
+        )
+        
+        self._subscriptions[subscription_id] = subscription
+        return subscription
+    
+    def activate_subscription(self, subscription_id: str) -> bool:
+        """Activate a subscription after successful payment"""
+        subscription = self._subscriptions.get(subscription_id)
+        if not subscription:
+            return False
+        
+        subscription.status = SubscriptionStatus.ACTIVE
+        subscription.started_at = datetime.now()
+        subscription.last_payment_at = datetime.now()
+        subscription.next_payment_at = datetime.now() + timedelta(days=30)
+        
+        return True
+    
+    def process_subscription_payment(self, subscription_id: str, success: bool) -> bool:
+        """Process subscription payment"""
+        subscription = self._subscriptions.get(subscription_id)
+        if not subscription:
+            return False
+        
+        if success:
+            subscription.last_payment_at = datetime.now()
+            subscription.next_payment_at = datetime.now() + timedelta(days=30)
+            subscription.failed_payments = 0
+            subscription.status = SubscriptionStatus.ACTIVE
+        else:
+            subscription.failed_payments += 1
+            if subscription.failed_payments >= 3:
+                subscription.status = SubscriptionStatus.CANCELLED
+                subscription.cancelled_at = datetime.now()
+        
+        return True
+    
+    def cancel_subscription(self, subscription_id: str) -> bool:
+        """Cancel a subscription"""
+        subscription = self._subscriptions.get(subscription_id)
+        if not subscription:
+            return False
+        
+        subscription.status = SubscriptionStatus.CANCELLED
+        subscription.cancelled_at = datetime.now()
+        
+        return True
+    
+    def pause_subscription(self, subscription_id: str) -> bool:
+        """Pause a subscription"""
+        subscription = self._subscriptions.get(subscription_id)
+        if not subscription:
+            return False
+        
+        subscription.status = SubscriptionStatus.PAUSED
+        
+        return True
+    
+    def resume_subscription(self, subscription_id: str) -> bool:
+        """Resume a paused subscription"""
+        subscription = self._subscriptions.get(subscription_id)
+        if not subscription or subscription.status != SubscriptionStatus.PAUSED:
+            return False
+        
+        subscription.status = SubscriptionStatus.ACTIVE
+        subscription.next_payment_at = datetime.now() + timedelta(days=30)
+        
+        return True
+    
+    def get_subscription(self, subscription_id: str) -> Optional[Subscription]:
+        """Get subscription by ID"""
+        return self._subscriptions.get(subscription_id)
+    
+    def get_customer_subscriptions(self, customer_email: str) -> List[Subscription]:
+        """Get all subscriptions for a customer"""
+        return [sub for sub in self._subscriptions.values() if sub.customer_email == customer_email]
+    
+    def get_subscriptions_by_status(self, status: SubscriptionStatus) -> List[Subscription]:
+        """Get subscriptions by status"""
+        return [sub for sub in self._subscriptions.values() if sub.status == status]
+    
+    def get_expiring_subscriptions(self, days_ahead: int = 7) -> List[Subscription]:
+        """Get subscriptions expiring within specified days"""
+        expiring_date = datetime.now() + timedelta(days=days_ahead)
+        return [
+            sub for sub in self._subscriptions.values() 
+            if (sub.status == SubscriptionStatus.ACTIVE and 
+                sub.next_payment_at and 
+                sub.next_payment_at <= expiring_date)
+        ]
+    
+    def get_subscription_analytics(self) -> Dict[str, Any]:
+        """Get subscription analytics"""
+        total_subscriptions = len(self._subscriptions)
+        active_subscriptions = len(self.get_subscriptions_by_status(SubscriptionStatus.ACTIVE))
+        cancelled_subscriptions = len(self.get_subscriptions_by_status(SubscriptionStatus.CANCELLED))
+        
+        # Calculate monthly recurring revenue (MRR) in sats
+        mrr_sats = sum(
+            sub.price_sats_per_month 
+            for sub in self._subscriptions.values() 
+            if sub.status == SubscriptionStatus.ACTIVE
+        )
+        
+        # Plan distribution
+        plan_distribution = {}
+        for plan in SubscriptionPlan:
+            plan_distribution[plan.value] = len([
+                sub for sub in self._subscriptions.values() 
+                if sub.plan == plan and sub.status == SubscriptionStatus.ACTIVE
+            ])
+        
+        return {
+            'total_subscriptions': total_subscriptions,
+            'active_subscriptions': active_subscriptions,
+            'cancelled_subscriptions': cancelled_subscriptions,
+            'churn_rate': cancelled_subscriptions / total_subscriptions if total_subscriptions > 0 else 0,
+            'mrr_sats': mrr_sats,
+            'mrr_btc': mrr_sats / 100_000_000,
+            'plan_distribution': plan_distribution,
+            'expiring_soon': len(self.get_expiring_subscriptions())
         }
     
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'Subscription':
-        """Create subscription from dictionary"""
-        subscription = cls(
-            subscription_id=data['subscription_id'],
-            customer_id=data['customer_id'],
-            plan_id=data['plan_id'],
-            status=SubscriptionStatus(data['status'])
-        )
-        
-        subscription.created_at = datetime.fromisoformat(data['created_at'])
-        subscription.updated_at = datetime.fromisoformat(data['updated_at'])
-        
-        if data.get('current_period_start'):
-            subscription.current_period_start = datetime.fromisoformat(data['current_period_start'])
-        if data.get('current_period_end'):
-            subscription.current_period_end = datetime.fromisoformat(data['current_period_end'])
-        if data.get('trial_end'):
-            subscription.trial_end = datetime.fromisoformat(data['trial_end'])
-        if data.get('cancelled_at'):
-            subscription.cancelled_at = datetime.fromisoformat(data['cancelled_at'])
-        if data.get('ended_at'):
-            subscription.ended_at = datetime.fromisoformat(data['ended_at'])
-        
-        subscription.payment_history = data.get('payment_history', [])
-        subscription.metadata = data.get('metadata', {})
-        
-        return subscription
-
-# Sample subscription plans for the marketplace
-SAMPLE_PLANS = [
-    SubscriptionPlan(
-        plan_id="basic",
-        name="Basic Plan",
-        description="Essential features for individual creators",
-        price_sats=50000,  # ~$15 at $30k BTC
-        billing_interval="monthly",
-        features=[
-            "Upload up to 10 digital products",
-            "Basic analytics dashboard",
-            "Lightning payment processing",
-            "Email support"
-        ],
-        trial_days=7
-    ),
-    SubscriptionPlan(
-        plan_id="pro",
-        name="Pro Plan", 
-        description="Advanced features for growing businesses",
-        price_sats=150000,  # ~$45 at $30k BTC
-        billing_interval="monthly",
-        features=[
-            "Unlimited digital products",
-            "Advanced analytics & insights",
-            "Priority Lightning routing",
-            "Custom branding options",
-            "API access",
-            "Priority support"
-        ],
-        trial_days=14
-    ),
-    SubscriptionPlan(
-        plan_id="enterprise",
-        name="Enterprise Plan",
-        description="Full-featured solution for large organizations",
-        price_sats=500000,  # ~$150 at $30k BTC
-        billing_interval="monthly",
-        features=[
-            "Everything in Pro",
-            "Multi-user accounts",
-            "Advanced API access",
-            "Custom integrations",
-            "Dedicated account manager",
-            "SLA guarantees",
-            "White-label options"
-        ],
-        trial_days=30
-    )
-]
+    def get_available_plans(cls) -> Dict[str, Dict[str, Any]]:
+        """Get available subscription plans"""
+        plans = {}
+        for plan, info in cls.PLANS.items():
+            plans[plan.value] = {
+                'name': info['name'],
+                'price_sats': info['price_sats'],
+                'price_btc': info['price_sats'] / 100_000_000,
+                'features': info['features']
+            }
+        return plans

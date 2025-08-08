@@ -12,7 +12,9 @@ from services.polar_service import PolarService
 from services.payment_service import PaymentService
 from services.websocket_service import WebSocketService, NotificationManager
 from services.lightning.lightning_factory import LightningFactory
+from services.analytics.analytics_service import AnalyticsService
 from models.product import ProductService
+from models.subscription import SubscriptionService
 from config import config
 import os
 
@@ -34,8 +36,10 @@ polar_service = PolarService()
 lightning_service = LightningFactory.create_service()
 payment_service = PaymentService()
 product_service = ProductService()
+subscription_service = SubscriptionService()
 websocket_service = WebSocketService(socketio)
 notification_manager = NotificationManager(websocket_service)
+analytics_service = AnalyticsService(payment_service.order_service, subscription_service, product_service)
 
 # Routes
 @app.route('/')
@@ -76,8 +80,8 @@ def connection_status():
 def stage_info():
     """Get current stage information and next steps"""
     return jsonify({
-        'current_stage': 'Stage 4: Production Ready',
-        'description': 'Multiple Lightning backends with production deployment',
+        'current_stage': 'Stage 5: Advanced Business Features',
+        'description': 'Complete business platform with analytics and subscriptions',
         'completed_features': [
             '✅ Flask application setup and routing',
             '✅ Environment variable management', 
@@ -96,21 +100,25 @@ def stage_info():
             '✅ Multiple Lightning backend support (Polar/Phoenix/Breeze/LND/CLN)',
             '✅ Environment-based configuration',
             '✅ Production deployment setup',
-            '✅ Real Lightning network transactions'
+            '✅ Real Lightning network transactions',
+            '✅ Sales analytics dashboard',
+            '✅ Subscription payment models',
+            '✅ Customer management system',
+            '✅ Business intelligence metrics'
         ],
-        'next_stage': 'Stage 5: Advanced Business Features',
+        'next_stage': 'Complete!',
         'next_features': [
-            '🔄 Sales analytics dashboard',
-            '🔄 Subscription payment models',
-            '🔄 Customer management system',
-            '🔄 Business intelligence metrics'
+            '🎉 Ready for production deployment',
+            '🎉 Full-featured Lightning commerce platform',
+            '🎉 Scalable business model',
+            '🎉 Advanced analytics and insights'
         ],
         'learning_objectives': [
-            'Multiple Lightning backend integration',
-            'Production deployment strategies',
-            'Environment-based configuration',
-            'Real Lightning network operations',
-            'Service abstraction patterns'
+            'Business analytics and metrics',
+            'Subscription model implementation',
+            'Customer lifecycle management',
+            'Revenue optimization strategies',
+            'Advanced Lightning commerce patterns'
         ]
     })
 
@@ -412,6 +420,154 @@ def test_notification():
             'error': str(e)
         }), 500
 
+# Stage 5: Advanced Business Features Routes
+
+@app.route('/dashboard')
+def dashboard():
+    """Analytics dashboard page"""
+    return render_template('dashboard/analytics.html', stage='Stage 5: Advanced Business Features')
+
+@app.route('/subscriptions')
+def subscriptions_page():
+    """Subscriptions management page"""
+    return render_template('dashboard/subscriptions.html', stage='Stage 5: Advanced Business Features')
+
+@app.route('/api/analytics/dashboard')
+def get_analytics_dashboard():
+    """Get comprehensive analytics dashboard data"""
+    try:
+        dashboard_data = analytics_service.get_comprehensive_dashboard()
+        return jsonify({
+            'success': True,
+            'dashboard': dashboard_data
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/analytics/sales')
+def get_sales_analytics():
+    """Get sales analytics"""
+    try:
+        days = int(request.args.get('days', 30))
+        sales_data = analytics_service.get_sales_analytics(days)
+        return jsonify({
+            'success': True,
+            'analytics': sales_data
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/analytics/export')
+def export_analytics():
+    """Export analytics data"""
+    try:
+        format_type = request.args.get('format', 'json')
+        exported_data = analytics_service.export_analytics(format_type)
+        
+        if format_type == 'csv':
+            from flask import Response
+            return Response(
+                exported_data,
+                mimetype='text/csv',
+                headers={'Content-Disposition': 'attachment; filename=analytics.csv'}
+            )
+        else:
+            return jsonify({
+                'success': True,
+                'data': exported_data
+            })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/subscriptions/plans')
+def get_subscription_plans():
+    """Get available subscription plans"""
+    try:
+        plans = SubscriptionService.get_available_plans()
+        return jsonify({
+            'success': True,
+            'plans': plans
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/subscriptions', methods=['POST'])
+def create_subscription():
+    """Create a new subscription"""
+    try:
+        data = request.get_json()
+        customer_email = data.get('customer_email')
+        plan_name = data.get('plan')
+        
+        if not customer_email or not plan_name:
+            return jsonify({
+                'success': False,
+                'error': 'Customer email and plan are required'
+            }), 400
+        
+        from models.subscription import SubscriptionPlan
+        plan = SubscriptionPlan(plan_name)
+        
+        subscription = subscription_service.create_subscription(customer_email, plan)
+        
+        return jsonify({
+            'success': True,
+            'subscription': subscription.to_dict()
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/subscriptions/<subscription_id>')
+def get_subscription(subscription_id):
+    """Get subscription details"""
+    try:
+        subscription = subscription_service.get_subscription(subscription_id)
+        if subscription:
+            return jsonify({
+                'success': True,
+                'subscription': subscription.to_dict()
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Subscription not found'
+            }), 404
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+@app.route('/api/subscriptions/analytics')
+def get_subscription_analytics():
+    """Get subscription analytics"""
+    try:
+        analytics = subscription_service.get_subscription_analytics()
+        return jsonify({
+            'success': True,
+            'analytics': analytics
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
 @app.route('/download/<order_id>/<int:product_id>')
 def download_product(order_id, product_id):
     """Download digital product (demo endpoint)"""
@@ -458,23 +614,26 @@ def internal_error(error):
     return jsonify({'error': 'Internal server error', 'stage': 'Stage 1'}), 500
 
 if __name__ == '__main__':
-    print("🚀 Lightning Digital Marketplace - Stage 4: Production Ready")
-    print("=" * 70)
-    print("📍 Starting Flask-SocketIO production server...")
+    print("🚀 Lightning Digital Marketplace - Stage 5: Advanced Business Features")
+    print("🎉 COMPLETE LIGHTNING COMMERCE PLATFORM!")
+    print("=" * 80)
+    print("📍 Starting production-ready Lightning commerce server...")
     print(f"⚡ Lightning Backend: {app.config.get('LIGHTNING_BACKEND', 'polar')}")
     print(f"🌐 Network: {app.config.get('LIGHTNING_NETWORK', 'regtest')}")
-    print("🔗 Available endpoints:")
+    print("🔗 Main application:")
     print("   • http://localhost:5000 - Home page")
-    print("   • http://localhost:5000/store - Digital store")
-    print("   • http://localhost:5000/api/health - Health check")
-    print("   • http://localhost:5000/api/lightning/backends - Lightning backends")
-    print("   • http://localhost:5000/api/lightning/balance - Wallet balance")
-    print("🔄 Production features:")
+    print("   • http://localhost:5000/store - Digital marketplace")
+    print("   • http://localhost:5000/dashboard - Business analytics")
+    print("   • http://localhost:5000/subscriptions - Subscription management")
+    print("🎯 Complete features:")
+    print("   • Full Lightning e-commerce platform")
+    print("   • Real-time payments and notifications")
     print("   • Multiple Lightning backend support")
-    print("   • Environment-based configuration")
+    print("   • Advanced business analytics")
+    print("   • Subscription payment models")
     print("   • Production deployment ready")
-    print("   • Real Lightning network transactions")
-    print("=" * 70)
+    print("🎊 Students now have a COMPLETE Lightning application!")
+    print("=" * 80)
     
     socketio.run(
         app,
