@@ -1,0 +1,463 @@
+{% extends "base.html" %}
+
+{% block title %}Subscriptions Management - Lightning Marketplace{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>
+                <i class="fas fa-credit-card text-primary"></i>
+                Subscription Management
+            </h2>
+            <div class="btn-group">
+                <button class="btn btn-success" onclick="showCreateSubscriptionModal()">
+                    <i class="fas fa-plus"></i> New Subscription
+                </button>
+                <button class="btn btn-outline-primary" onclick="refreshSubscriptions()">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Subscription Plans Overview -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-info">
+            <div class="card-header bg-info text-white">
+                <h6 class="mb-0">
+                    <i class="fas fa-layer-group"></i>
+                    Available Subscription Plans
+                </h6>
+            </div>
+            <div class="card-body">
+                <div id="subscription-plans" class="row">
+                    <!-- Plans will be loaded dynamically -->
+                    <div class="col-12 text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading plans...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Subscription Analytics Summary -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-center border-success">
+            <div class="card-body">
+                <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                <h4 id="active-subs-count">0</h4>
+                <p class="text-muted mb-0">Active Subscriptions</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center border-warning">
+            <div class="card-body">
+                <i class="fas fa-coins fa-2x text-warning mb-2"></i>
+                <h4 id="mrr-display">0 sats</h4>
+                <p class="text-muted mb-0">Monthly Recurring Revenue</p>
+                <small id="mrr-btc" class="text-muted">0 BTC</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center border-danger">
+            <div class="card-body">
+                <i class="fas fa-times-circle fa-2x text-danger mb-2"></i>
+                <h4 id="cancelled-subs-count">0</h4>
+                <p class="text-muted mb-0">Cancelled Subscriptions</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center border-info">
+            <div class="card-body">
+                <i class="fas fa-percentage fa-2x text-info mb-2"></i>
+                <h4 id="churn-rate-display">0%</h4>
+                <p class="text-muted mb-0">Churn Rate</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Subscription List -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">
+                        <i class="fas fa-list"></i>
+                        All Subscriptions
+                    </h6>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-secondary active" onclick="filterSubscriptions('all')">All</button>
+                        <button class="btn btn-outline-secondary" onclick="filterSubscriptions('active')">Active</button>
+                        <button class="btn btn-outline-secondary" onclick="filterSubscriptions('cancelled')">Cancelled</button>
+                        <button class="btn btn-outline-secondary" onclick="filterSubscriptions('pending')">Pending</button>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="subscriptions-loading" class="text-center my-3">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading subscriptions...</span>
+                    </div>
+                    <p class="mt-2">Loading subscription data...</p>
+                </div>
+                
+                <div id="subscriptions-table" style="display: none;">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Customer</th>
+                                    <th>Plan</th>
+                                    <th>Status</th>
+                                    <th>Monthly Price</th>
+                                    <th>Created</th>
+                                    <th>Next Payment</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="subscriptions-tbody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div id="no-subscriptions" style="display: none;">
+                    <div class="text-center my-5">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <h5>No Subscriptions Found</h5>
+                        <p class="text-muted">Create your first subscription to get started.</p>
+                        <button class="btn btn-success" onclick="showCreateSubscriptionModal()">
+                            <i class="fas fa-plus"></i> Create Subscription
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Subscription Modal -->
+<div class="modal fade" id="createSubscriptionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus"></i>
+                    Create New Subscription
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createSubscriptionForm">
+                    <div class="mb-3">
+                        <label for="customerEmail" class="form-label">Customer Email</label>
+                        <input type="email" class="form-control" id="customerEmail" required>
+                        <div class="form-text">Customer's email address for billing</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="subscriptionPlan" class="form-label">Subscription Plan</label>
+                        <select class="form-select" id="subscriptionPlan" required>
+                            <option value="">Select a plan...</option>
+                        </select>
+                    </div>
+                    <div id="planDetails" class="mb-3" style="display: none;">
+                        <div class="card bg-light">
+                            <div class="card-body">
+                                <h6 id="selectedPlanName"></h6>
+                                <p id="selectedPlanPrice" class="text-success mb-2"></p>
+                                <div id="selectedPlanFeatures"></div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" onclick="createSubscription()">
+                    <i class="fas fa-credit-card"></i> Create Subscription
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Subscription Details Modal -->
+<div class="modal fade" id="subscriptionDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-info-circle"></i>
+                    Subscription Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="subscriptionDetailsContent">
+                <!-- Details will be populated dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <div id="subscriptionActions">
+                    <!-- Action buttons will be added dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let subscriptionPlans = {};
+let allSubscriptions = [];
+let currentFilter = 'all';
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    loadSubscriptionPlans();
+    loadSubscriptionAnalytics();
+    // Note: We're not loading individual subscriptions initially as the backend 
+    // doesn't have sample data. In a real app, you'd call loadSubscriptions() here.
+    showNoSubscriptions();
+});
+
+// Load available subscription plans
+async function loadSubscriptionPlans() {
+    try {
+        const response = await fetch('/api/subscriptions/plans');
+        const data = await response.json();
+        
+        if (data.success) {
+            subscriptionPlans = data.plans;
+            displaySubscriptionPlans();
+            populatePlanSelector();
+        } else {
+            throw new Error(data.error || 'Failed to load plans');
+        }
+    } catch (error) {
+        console.error('Error loading subscription plans:', error);
+        document.getElementById('subscription-plans').innerHTML = `
+            <div class="col-12">
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Failed to load subscription plans: ${error.message}
+                </div>
+            </div>
+        `;
+    }
+}
+
+// Display subscription plans
+function displaySubscriptionPlans() {
+    const container = document.getElementById('subscription-plans');
+    let html = '';
+    
+    Object.entries(subscriptionPlans).forEach(([planId, plan]) => {
+        html += `
+            <div class="col-md-4 mb-3">
+                <div class="card border-primary h-100">
+                    <div class="card-header bg-primary text-white text-center">
+                        <h6 class="mb-0">${plan.name}</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="text-center mb-3">
+                            <h4 class="text-success">${plan.price_sats.toLocaleString()} sats</h4>
+                            <small class="text-muted">${plan.price_btc.toFixed(8)} BTC/month</small>
+                        </div>
+                        <ul class="list-unstyled">
+                            ${plan.features.map(feature => `
+                                <li class="mb-1">
+                                    <i class="fas fa-check text-success"></i>
+                                    ${feature}
+                                </li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+}
+
+// Populate plan selector in modal
+function populatePlanSelector() {
+    const selector = document.getElementById('subscriptionPlan');
+    let options = '<option value="">Select a plan...</option>';
+    
+    Object.entries(subscriptionPlans).forEach(([planId, plan]) => {
+        options += `<option value="${planId}">${plan.name} - ${plan.price_sats.toLocaleString()} sats/month</option>`;
+    });
+    
+    selector.innerHTML = options;
+    
+    // Add change listener
+    selector.addEventListener('change', function() {
+        const selectedPlan = subscriptionPlans[this.value];
+        if (selectedPlan) {
+            showPlanDetails(selectedPlan);
+        } else {
+            document.getElementById('planDetails').style.display = 'none';
+        }
+    });
+}
+
+// Show plan details when selected
+function showPlanDetails(plan) {
+    document.getElementById('selectedPlanName').textContent = plan.name;
+    document.getElementById('selectedPlanPrice').textContent = 
+        `${plan.price_sats.toLocaleString()} sats/month (${plan.price_btc.toFixed(8)} BTC)`;
+    
+    const featuresHtml = plan.features.map(feature => `
+        <small class="d-block">
+            <i class="fas fa-check text-success"></i>
+            ${feature}
+        </small>
+    `).join('');
+    
+    document.getElementById('selectedPlanFeatures').innerHTML = featuresHtml;
+    document.getElementById('planDetails').style.display = 'block';
+}
+
+// Load subscription analytics
+async function loadSubscriptionAnalytics() {
+    try {
+        const response = await fetch('/api/subscriptions/analytics');
+        const data = await response.json();
+        
+        if (data.success) {
+            const analytics = data.analytics;
+            
+            document.getElementById('active-subs-count').textContent = analytics.active_subscriptions;
+            document.getElementById('mrr-display').textContent = analytics.mrr_sats.toLocaleString() + ' sats';
+            document.getElementById('mrr-btc').textContent = analytics.mrr_btc.toFixed(8) + ' BTC';
+            document.getElementById('cancelled-subs-count').textContent = analytics.cancelled_subscriptions;
+            document.getElementById('churn-rate-display').textContent = (analytics.churn_rate * 100).toFixed(1) + '%';
+        } else {
+            throw new Error(data.error || 'Failed to load analytics');
+        }
+    } catch (error) {
+        console.error('Error loading subscription analytics:', error);
+        // Set default values on error
+        document.getElementById('active-subs-count').textContent = '0';
+        document.getElementById('mrr-display').textContent = '0 sats';
+        document.getElementById('mrr-btc').textContent = '0 BTC';
+        document.getElementById('cancelled-subs-count').textContent = '0';
+        document.getElementById('churn-rate-display').textContent = '0%';
+    }
+}
+
+// Show create subscription modal
+function showCreateSubscriptionModal() {
+    const modal = new bootstrap.Modal(document.getElementById('createSubscriptionModal'));
+    modal.show();
+}
+
+// Create subscription
+async function createSubscription() {
+    const customerEmail = document.getElementById('customerEmail').value;
+    const plan = document.getElementById('subscriptionPlan').value;
+    
+    if (!customerEmail || !plan) {
+        alert('Please fill in all required fields');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/subscriptions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                customer_email: customerEmail,
+                plan: plan
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('createSubscriptionModal'));
+            modal.hide();
+            
+            // Reset form
+            document.getElementById('createSubscriptionForm').reset();
+            document.getElementById('planDetails').style.display = 'none';
+            
+            // Show success message
+            alert('Subscription created successfully!');
+            
+            // Refresh data
+            loadSubscriptionAnalytics();
+            loadSubscriptions();
+        } else {
+            throw new Error(data.error || 'Failed to create subscription');
+        }
+    } catch (error) {
+        console.error('Error creating subscription:', error);
+        alert('Failed to create subscription: ' + error.message);
+    }
+}
+
+// Load subscriptions (placeholder - would be implemented with real data)
+function loadSubscriptions() {
+    // Since we don't have real subscription data, show no subscriptions message
+    showNoSubscriptions();
+}
+
+// Show no subscriptions message
+function showNoSubscriptions() {
+    document.getElementById('subscriptions-loading').style.display = 'none';
+    document.getElementById('subscriptions-table').style.display = 'none';
+    document.getElementById('no-subscriptions').style.display = 'block';
+}
+
+// Filter subscriptions
+function filterSubscriptions(status) {
+    currentFilter = status;
+    
+    // Update active button
+    document.querySelectorAll('.btn-group .btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+    
+    // In a real implementation, this would filter the displayed subscriptions
+    // For now, we'll just show the no subscriptions message
+    showNoSubscriptions();
+}
+
+// Refresh subscriptions
+function refreshSubscriptions() {
+    loadSubscriptionAnalytics();
+    loadSubscriptions();
+}
+
+// Show subscription details (placeholder)
+function showSubscriptionDetails(subscriptionId) {
+    // This would fetch and display subscription details in the modal
+    console.log('Show details for subscription:', subscriptionId);
+}
+
+// Manage subscription actions (pause, resume, cancel)
+async function manageSubscription(subscriptionId, action) {
+    // This would handle subscription management actions
+    console.log('Manage subscription:', subscriptionId, action);
+}
+</script>
+{% endblock %}

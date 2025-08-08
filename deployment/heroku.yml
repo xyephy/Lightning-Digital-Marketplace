@@ -1,0 +1,14 @@
+# Lightning Digital Marketplace - Heroku Deployment
+# Stage 4: Production Ready
+
+build:
+  docker:
+    web: deployment/Dockerfile
+
+release:
+  image: web
+  command:
+    - python -c "print('Running pre-deployment setup...')"
+
+run:
+  web: python app.py

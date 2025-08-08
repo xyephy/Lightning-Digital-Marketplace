@@ -1,0 +1,511 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics Dashboard - Lightning Marketplace{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>
+                <i class="fas fa-chart-bar text-primary"></i>
+                Business Analytics Dashboard
+            </h2>
+            <div class="btn-group">
+                <button class="btn btn-outline-primary" onclick="exportData('json')">
+                    <i class="fas fa-download"></i> Export JSON
+                </button>
+                <button class="btn btn-outline-primary" onclick="exportData('csv')">
+                    <i class="fas fa-file-csv"></i> Export CSV
+                </button>
+                <button class="btn btn-primary" onclick="refreshDashboard()">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Lightning Network Status -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card border-warning">
+            <div class="card-header bg-warning text-dark">
+                <h6 class="mb-0">
+                    <i class="fas fa-bolt"></i>
+                    Lightning Network Status
+                </h6>
+            </div>
+            <div class="card-body">
+                <div id="lightning-status" class="d-flex align-items-center">
+                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                    Checking Lightning Network status...
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading indicator -->
+<div id="dashboard-loading" class="text-center my-5">
+    <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+        <span class="visually-hidden">Loading...</span>
+    </div>
+    <p class="mt-3">Loading analytics dashboard...</p>
+</div>
+
+<!-- Dashboard content (hidden until loaded) -->
+<div id="dashboard-content" style="display: none;">
+    
+    <!-- Key Metrics Overview -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center border-success">
+                <div class="card-body">
+                    <i class="fas fa-shopping-cart fa-2x text-success mb-2"></i>
+                    <h5 id="total-orders">0</h5>
+                    <p class="text-muted mb-0">Total Orders</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center border-info">
+                <div class="card-body">
+                    <i class="fas fa-bitcoin fa-2x text-warning mb-2"></i>
+                    <h5 id="total-revenue-sats">0 sats</h5>
+                    <p class="text-muted mb-0">Total Revenue</p>
+                    <small id="total-revenue-btc" class="text-muted">0 BTC</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center border-primary">
+                <div class="card-body">
+                    <i class="fas fa-users fa-2x text-primary mb-2"></i>
+                    <h5 id="total-customers">0</h5>
+                    <p class="text-muted mb-0">Total Customers</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center border-danger">
+                <div class="card-body">
+                    <i class="fas fa-percentage fa-2x text-danger mb-2"></i>
+                    <h5 id="conversion-rate">0%</h5>
+                    <p class="text-muted mb-0">Conversion Rate</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Revenue Analytics -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-line"></i>
+                        Revenue Breakdown
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <h5 id="one-time-revenue" class="text-success">0 sats</h5>
+                            <p class="text-muted">One-time Sales</p>
+                        </div>
+                        <div class="col-6">
+                            <h5 id="recurring-revenue" class="text-info">0 sats</h5>
+                            <p class="text-muted">Monthly Recurring</p>
+                        </div>
+                    </div>
+                    <div class="progress mt-3" style="height: 25px;">
+                        <div id="revenue-one-time-bar" class="progress-bar bg-success" role="progressbar" style="width: 50%">
+                            <span id="revenue-one-time-percent">50%</span>
+                        </div>
+                        <div id="revenue-recurring-bar" class="progress-bar bg-info" role="progressbar" style="width: 50%">
+                            <span id="revenue-recurring-percent">50%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-bolt"></i>
+                        Lightning Analytics
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <h5 id="lightning-transactions">0</h5>
+                            <p class="text-muted">Lightning TXs</p>
+                        </div>
+                        <div class="col-6">
+                            <h5 id="average-tx-size">0 sats</h5>
+                            <p class="text-muted">Avg TX Size</p>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <p class="mb-1">
+                            <i class="fas fa-tachometer-alt text-success"></i>
+                            <span id="instant-settlements">0</span> instant settlements
+                        </p>
+                        <p class="mb-0">
+                            <i class="fas fa-coins text-warning"></i>
+                            Est. <span id="fees-saved">0</span> sats saved on fees
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Subscription Analytics -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-credit-card"></i>
+                        Subscription Analytics
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center mb-3">
+                        <div class="col-3">
+                            <h5 id="active-subscriptions" class="text-success">0</h5>
+                            <p class="text-muted">Active</p>
+                        </div>
+                        <div class="col-3">
+                            <h5 id="cancelled-subscriptions" class="text-danger">0</h5>
+                            <p class="text-muted">Cancelled</p>
+                        </div>
+                        <div class="col-3">
+                            <h5 id="mrr-sats">0 sats</h5>
+                            <p class="text-muted">MRR</p>
+                        </div>
+                        <div class="col-3">
+                            <h5 id="churn-rate">0%</h5>
+                            <p class="text-muted">Churn Rate</p>
+                        </div>
+                    </div>
+                    
+                    <h6>Plan Distribution:</h6>
+                    <div id="plan-distribution" class="mt-2">
+                        <!-- Plan distribution will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        Alerts & Notifications
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div id="expiring-subscriptions" class="alert alert-warning">
+                        <i class="fas fa-calendar-times"></i>
+                        <span id="expiring-count">0</span> subscriptions expiring soon
+                    </div>
+                    <div id="recent-activities" class="mt-3">
+                        <h6>Recent Activity:</h6>
+                        <ul id="activity-list" class="list-unstyled">
+                            <li class="text-muted">
+                                <i class="fas fa-clock"></i>
+                                Loading recent activities...
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Products and Customers -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-star"></i>
+                        Top Products
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div id="top-products">
+                        <!-- Top products will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-trophy"></i>
+                        Top Customers
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div id="top-customers">
+                        <!-- Top customers will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Daily Sales Chart -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-area"></i>
+                        Daily Sales (Last 30 Days)
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table id="daily-sales-table" class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Orders</th>
+                                    <th>Revenue (sats)</th>
+                                    <th>Revenue (BTC)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted">
+                                        Loading daily sales data...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let dashboardData = null;
+
+// Load dashboard data
+async function loadDashboard() {
+    try {
+        const response = await fetch('/api/analytics/dashboard');
+        const data = await response.json();
+        
+        if (data.success) {
+            dashboardData = data.dashboard;
+            updateDashboard();
+            document.getElementById('dashboard-loading').style.display = 'none';
+            document.getElementById('dashboard-content').style.display = 'block';
+        } else {
+            throw new Error(data.error || 'Failed to load dashboard');
+        }
+    } catch (error) {
+        console.error('Error loading dashboard:', error);
+        document.getElementById('dashboard-loading').innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle"></i>
+                Failed to load dashboard: ${error.message}
+            </div>
+        `;
+    }
+}
+
+// Update dashboard with loaded data
+function updateDashboard() {
+    if (!dashboardData) return;
+    
+    const { sales, customers, revenue, lightning, subscriptions } = dashboardData;
+    
+    // Key metrics
+    document.getElementById('total-orders').textContent = sales.total_orders.toLocaleString();
+    document.getElementById('total-revenue-sats').textContent = sales.total_revenue_sats.toLocaleString() + ' sats';
+    document.getElementById('total-revenue-btc').textContent = sales.total_revenue_btc.toFixed(8) + ' BTC';
+    document.getElementById('total-customers').textContent = customers.total_customers.toLocaleString();
+    document.getElementById('conversion-rate').textContent = (sales.conversion_rate * 100).toFixed(1) + '%';
+    
+    // Revenue breakdown
+    document.getElementById('one-time-revenue').textContent = revenue.one_time_revenue_sats.toLocaleString() + ' sats';
+    document.getElementById('recurring-revenue').textContent = revenue.monthly_recurring_revenue_sats.toLocaleString() + ' sats';
+    
+    const oneTimePercent = revenue.revenue_mix.one_time_percentage;
+    const recurringPercent = revenue.revenue_mix.subscription_percentage;
+    
+    document.getElementById('revenue-one-time-bar').style.width = oneTimePercent + '%';
+    document.getElementById('revenue-recurring-bar').style.width = recurringPercent + '%';
+    document.getElementById('revenue-one-time-percent').textContent = oneTimePercent.toFixed(1) + '%';
+    document.getElementById('revenue-recurring-percent').textContent = recurringPercent.toFixed(1) + '%';
+    
+    // Lightning analytics
+    document.getElementById('lightning-transactions').textContent = lightning.total_lightning_transactions.toLocaleString();
+    document.getElementById('average-tx-size').textContent = Math.round(lightning.average_transaction_sats).toLocaleString() + ' sats';
+    document.getElementById('instant-settlements').textContent = lightning.instant_settlements.toLocaleString();
+    document.getElementById('fees-saved').textContent = lightning.lightning_network_fees_saved.toLocaleString();
+    
+    // Subscription analytics
+    document.getElementById('active-subscriptions').textContent = subscriptions.active_subscriptions;
+    document.getElementById('cancelled-subscriptions').textContent = subscriptions.cancelled_subscriptions;
+    document.getElementById('mrr-sats').textContent = subscriptions.mrr_sats.toLocaleString() + ' sats';
+    document.getElementById('churn-rate').textContent = (subscriptions.churn_rate * 100).toFixed(1) + '%';
+    document.getElementById('expiring-count').textContent = subscriptions.expiring_soon;
+    
+    // Plan distribution
+    updatePlanDistribution(subscriptions.plan_distribution);
+    
+    // Top products
+    updateTopProducts(sales.top_products);
+    
+    // Top customers
+    updateTopCustomers(customers.top_customers);
+    
+    // Daily sales
+    updateDailySales(sales.daily_sales);
+}
+
+function updatePlanDistribution(planDist) {
+    const container = document.getElementById('plan-distribution');
+    let html = '';
+    
+    Object.entries(planDist).forEach(([plan, count]) => {
+        const percentage = count > 0 ? (count / Object.values(planDist).reduce((a, b) => a + b, 1)) * 100 : 0;
+        html += `
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="text-capitalize">${plan}:</span>
+                <span class="badge bg-primary">${count}</span>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html || '<p class="text-muted">No subscription data available</p>';
+}
+
+function updateTopProducts(topProducts) {
+    const container = document.getElementById('top-products');
+    let html = '';
+    
+    if (topProducts && topProducts.length > 0) {
+        topProducts.slice(0, 5).forEach((product, index) => {
+            html += `
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div>
+                        <strong>${product[0]}</strong>
+                        <br><small class="text-muted">${product[1].count} sales</small>
+                    </div>
+                    <span class="badge bg-success">${product[1].revenue_sats.toLocaleString()} sats</span>
+                </div>
+            `;
+        });
+    } else {
+        html = '<p class="text-muted">No sales data available</p>';
+    }
+    
+    container.innerHTML = html;
+}
+
+function updateTopCustomers(topCustomers) {
+    const container = document.getElementById('top-customers');
+    let html = '';
+    
+    if (topCustomers && topCustomers.length > 0) {
+        topCustomers.slice(0, 5).forEach((customer, index) => {
+            html += `
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div>
+                        <strong>${customer[0] || 'Anonymous'}</strong>
+                    </div>
+                    <span class="badge bg-primary">${customer[1].toLocaleString()} sats</span>
+                </div>
+            `;
+        });
+    } else {
+        html = '<p class="text-muted">No customer data available</p>';
+    }
+    
+    container.innerHTML = html;
+}
+
+function updateDailySales(dailySales) {
+    const tbody = document.querySelector('#daily-sales-table tbody');
+    let html = '';
+    
+    if (dailySales && Object.keys(dailySales).length > 0) {
+        Object.entries(dailySales).forEach(([date, data]) => {
+            html += `
+                <tr>
+                    <td>${date}</td>
+                    <td>${data.orders}</td>
+                    <td>${data.revenue_sats.toLocaleString()}</td>
+                    <td>${(data.revenue_sats / 100_000_000).toFixed(8)}</td>
+                </tr>
+            `;
+        });
+    } else {
+        html = '<tr><td colspan="4" class="text-center text-muted">No sales data available</td></tr>';
+    }
+    
+    tbody.innerHTML = html;
+}
+
+// Export functionality
+async function exportData(format) {
+    try {
+        const response = await fetch(`/api/analytics/export?format=${format}`);
+        
+        if (format === 'csv') {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'analytics.csv';
+            a.click();
+            window.URL.revokeObjectURL(url);
+        } else {
+            const data = await response.json();
+            if (data.success) {
+                const blob = new Blob([JSON.stringify(data.data, null, 2)], { type: 'application/json' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'analytics.json';
+                a.click();
+                window.URL.revokeObjectURL(url);
+            }
+        }
+    } catch (error) {
+        console.error('Export failed:', error);
+        alert('Failed to export data: ' + error.message);
+    }
+}
+
+// Refresh dashboard
+function refreshDashboard() {
+    document.getElementById('dashboard-loading').style.display = 'block';
+    document.getElementById('dashboard-content').style.display = 'none';
+    loadDashboard();
+}
+
+// Initialize dashboard
+document.addEventListener('DOMContentLoaded', function() {
+    loadDashboard();
+    
+    // Auto-refresh every 5 minutes
+    setInterval(refreshDashboard, 5 * 60 * 1000);
+});
+</script>
+{% endblock %}

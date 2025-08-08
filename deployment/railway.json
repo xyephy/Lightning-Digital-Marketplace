@@ -1,0 +1,36 @@
+{
+  "name": "Lightning Digital Marketplace",
+  "description": "A complete Lightning Network commerce platform built with Flask",
+  "repository": "https://github.com/yourusername/Lightning-Digital-Marketplace",
+  "keywords": ["lightning", "bitcoin", "flask", "commerce", "marketplace"],
+  "build": {
+    "builder": "dockerfile",
+    "dockerfilePath": "deployment/Dockerfile"
+  },
+  "deploy": {
+    "healthcheck": "/api/health",
+    "restartPolicyType": "on-failure",
+    "healthcheckTimeout": 30,
+    "healthcheckInterval": 30
+  },
+  "environment": {
+    "FLASK_ENV": "production",
+    "LIGHTNING_BACKEND": "polar",
+    "LIGHTNING_NETWORK": "regtest",
+    "DEBUG": "false",
+    "PORT": "5000"
+  },
+  "volumes": [],
+  "services": [
+    {
+      "name": "web",
+      "source": {
+        "type": "image"
+      },
+      "variables": {
+        "FLASK_ENV": "production",
+        "PORT": "$PORT"
+      }
+    }
+  ]
+}
