@@ -245,3 +245,4 @@ class PhoenixLightningService(LightningServiceInterface):
                 'error': f"Failed to pay Phoenix invoice: {str(e)}",
                 'backend': 'phoenix'
             }
+

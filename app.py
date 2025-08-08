@@ -632,7 +632,7 @@ if __name__ == '__main__':
     print("   • Advanced business analytics")
     print("   • Subscription payment models")
     print("   • Production deployment ready")
-    print("🎊 Students now have a COMPLETE Lightning application!")
+    print("🎊 Developers now have a COMPLETE Lightning application!")
     print("=" * 80)
     
     socketio.run(

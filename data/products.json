@@ -1,0 +1,104 @@
+[
+  {
+    "id": 1,
+    "name": "Lightning Network Whitepaper",
+    "description": "The original Lightning Network whitepaper by Joseph Poon and Thaddeus Dryja. Essential reading for understanding the Lightning Network.",
+    "price_sats": 1000,
+    "price_btc": 1e-05,
+    "category": "educational",
+    "image_url": "https://via.placeholder.com/300x200?text=Lightning+Whitepaper",
+    "digital_content": "lightning_whitepaper.pdf",
+    "is_active": true,
+    "tags": [
+      "bitcoin",
+      "lightning",
+      "whitepaper",
+      "educational"
+    ]
+  },
+  {
+    "id": 2,
+    "name": "Bitcoin Developer Toolkit",
+    "description": "Complete toolkit for Bitcoin development including sample code, libraries, and documentation.",
+    "price_sats": 5000,
+    "price_btc": 5e-05,
+    "category": "development",
+    "image_url": "https://via.placeholder.com/300x200?text=Dev+Toolkit",
+    "digital_content": "bitcoin_dev_toolkit.zip",
+    "is_active": true,
+    "tags": [
+      "bitcoin",
+      "development",
+      "tools",
+      "code"
+    ]
+  },
+  {
+    "id": 3,
+    "name": "Lightning Node Setup Guide",
+    "description": "Step-by-step guide to setting up your own Lightning Network node with best practices and security tips.",
+    "price_sats": 2500,
+    "price_btc": 2.5e-05,
+    "category": "tutorial",
+    "image_url": "https://via.placeholder.com/300x200?text=Node+Setup",
+    "digital_content": "lightning_node_guide.pdf",
+    "is_active": true,
+    "tags": [
+      "lightning",
+      "node",
+      "tutorial",
+      "setup"
+    ]
+  },
+  {
+    "id": 4,
+    "name": "Bitcoin Trading Bot Script",
+    "description": "Python script for automated Bitcoin trading with Lightning Network integration for fast settlements.",
+    "price_sats": 10000,
+    "price_btc": 0.0001,
+    "category": "automation",
+    "image_url": "https://via.placeholder.com/300x200?text=Trading+Bot",
+    "digital_content": "trading_bot.py",
+    "is_active": true,
+    "tags": [
+      "bitcoin",
+      "trading",
+      "automation",
+      "python"
+    ]
+  },
+  {
+    "id": 5,
+    "name": "Lightning Payment Widget",
+    "description": "Ready-to-use JavaScript widget for accepting Lightning payments on your website.",
+    "price_sats": 7500,
+    "price_btc": 7.5e-05,
+    "category": "development",
+    "image_url": "https://via.placeholder.com/300x200?text=Payment+Widget",
+    "digital_content": "lightning_widget.js",
+    "is_active": true,
+    "tags": [
+      "lightning",
+      "payments",
+      "javascript",
+      "widget"
+    ]
+  },
+  {
+    "id": 6,
+    "name": "Cryptocurrency Market Analysis",
+    "description": "Comprehensive market analysis report covering Bitcoin, Lightning Network adoption, and future trends.",
+    "price_sats": 3000,
+    "price_btc": 3e-05,
+    "category": "analysis",
+    "image_url": "https://via.placeholder.com/300x200?text=Market+Analysis",
+    "digital_content": "market_analysis.pdf",
+    "is_active": true,
+    "tags": [
+      "bitcoin",
+      "market",
+      "analysis",
+      "trends"
+    ]
+  }
+]

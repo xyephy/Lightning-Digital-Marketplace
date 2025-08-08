@@ -167,3 +167,4 @@ class PolarLightningService(LightningServiceInterface):
                 'error': f"Failed to pay invoice: {str(e)}",
                 'backend': 'polar'
             }
+

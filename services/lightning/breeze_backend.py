@@ -241,3 +241,4 @@ class BreezeLightningService(LightningServiceInterface):
                 'error': f"Failed to get Breeze LSP info: {str(e)}",
                 'backend': 'breeze'
             }
+

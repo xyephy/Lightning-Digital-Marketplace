@@ -11,10 +11,20 @@ class ProductionConfig:
     # Flask Configuration
     DEBUG = False
     TESTING = False
-    SECRET_KEY = os.getenv('SECRET_KEY')
+    _secret_key = os.getenv('SECRET_KEY')
+    if not _secret_key:
+        # Only raise error when config is actually used, not during import
+        SECRET_KEY = None
+    else:
+        SECRET_KEY = _secret_key
     
-    if not SECRET_KEY:
-        raise ValueError("SECRET_KEY environment variable is required in production")
+    @classmethod
+    def validate(cls):
+        """Validate production configuration before use"""
+        if not cls.SECRET_KEY:
+            raise ValueError("SECRET_KEY environment variable is required in production")
+        if not cls.DATABASE_URL:
+            raise ValueError("DATABASE_URL environment variable is required in production")
     
     # Lightning Configuration - Production
     LIGHTNING_BACKEND = os.getenv('LIGHTNING_BACKEND', 'phoenix')
@@ -42,7 +52,7 @@ class ProductionConfig:
     # Database Configuration (Production)
     DATABASE_URL = os.getenv('DATABASE_URL')
     if not DATABASE_URL:
-        raise ValueError("DATABASE_URL environment variable is required in production")
+        DATABASE_URL = None  # Will be validated when config is used
     
     # Security Configuration
     CORS_ORIGINS = os.getenv('CORS_ORIGINS', '').split(',') if os.getenv('CORS_ORIGINS') else []
@@ -111,3 +121,4 @@ class ProductionConfig:
                 'metrics_enabled': os.getenv('ENABLE_METRICS', 'true').lower() == 'true'
             }
         }
+

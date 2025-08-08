@@ -61,3 +61,4 @@ class TestingConfig:
                 'fast_timeouts': True
             }
         }
+

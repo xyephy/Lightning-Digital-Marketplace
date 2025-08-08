@@ -294,3 +294,4 @@ class LNDRestService(LightningServiceInterface):
                 'error': f"Failed to pay LND invoice: {str(e)}",
                 'backend': 'lnd_rest'
             }
+

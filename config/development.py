@@ -55,3 +55,4 @@ class DevelopmentConfig:
                 'verbose_logging': True
             }
         }
+

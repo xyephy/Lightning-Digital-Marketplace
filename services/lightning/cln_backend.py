@@ -295,3 +295,4 @@ class CLNRestService(LightningServiceInterface):
                 'error': f"Failed to pay CLN invoice: {str(e)}",
                 'backend': 'cln_rest'
             }
+

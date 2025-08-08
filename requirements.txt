@@ -1,18 +1,10 @@
-# Lightning Digital Marketplace - Dependencies
-# Flask application with Lightning commerce features
+# Lightning Digital Marketplace - Stage 1 Dependencies
+# Basic Flask application with Lightning integration
 
 Flask==2.3.3
 python-dotenv==1.0.0
 requests==2.31.0
 flask-cors==4.0.0
-
-# Stage 2: Commerce features
-qrcode==7.4.2
-Pillow==10.0.0
-
-# Stage 3: Real-time features
-Flask-SocketIO==5.3.6
-eventlet==0.33.3
 
 # Development tools
 python-decouple==3.8

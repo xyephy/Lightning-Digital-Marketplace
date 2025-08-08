@@ -56,7 +56,12 @@ class ProductService:
         try:
             with open(self.data_file, 'r') as f:
                 data = json.load(f)
-                return [Product(**item) for item in data]
+                # Filter out price_btc since it's a computed property
+                clean_data = []
+                for item in data:
+                    clean_item = {k: v for k, v in item.items() if k != 'price_btc'}
+                    clean_data.append(clean_item)
+                return [Product(**item) for item in clean_data]
         except FileNotFoundError:
             return self._create_sample_products()
     
@@ -175,3 +180,4 @@ class ProductService:
             if product.is_active:
                 categories.add(product.category)
         return sorted(list(categories))
+
